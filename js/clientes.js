@@ -164,15 +164,10 @@ function lista_clientes() {
         $.each(obj, function (index, val) {
             $("#tabla-clientes").find("tbody").append(`<tr>
                 <td>${val.id}</td>
-                <td>${val.nombres}</td>
-                <td>${val.dni}</td>
-                <td>${val.sucursal}</td>
-                <td>${val.grado}</td>
-                <td>${val.seccion}</td>
-                <td>${val.tipo_cliente}</td>
-                <td>${val.padre}</td>
+                <td>${val.razon_social}</td>
+                <td>${val.n_documento}</td>
                 <td>${val.celular}</td>
-                <td>${val.saldo}</td>
+                <td>${val.correo}</td>
                 <td>
                     <span class="btn btn-outline-info btn-sm d-block mb-1" data-toggle="modal" data-target="#movimientos" onclick="abrir_movimientos(${val.id});"><i class="fa fa-money-bill"></i></span>    
                     <span class="btn btn-outline-warning btn-sm d-block mb-1" data-toggle="modal" data-target="#formulario" onclick="editar_cliente(${val.id});"><i class="fa fa-edit"></i></span>

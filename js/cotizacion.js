@@ -3,7 +3,6 @@ var cantidades = [];
 var precios = [];
 let id_cliente_general = 0;
 $(document).ready(function () {
-    lista_clientes_sucursal();
 
     lista_formas_pagos();
 
@@ -113,24 +112,101 @@ function lista_formas_pagos() {
         });
     });
 }
-function lista_clientes_sucursal() {
-    $.post("ws/service.php?parAccion=lista_clientes_sucursal", function (response) {
-        var obj = JSON.parse(response);
-        $("#id_cliente").empty();
-        $("#id_cliente").append(`<option value="0">--SELECCIONE--</option>`);
-        $.each(obj, function (index, val) {
-            if (val.dni == '00000000') {
-                id_cliente_general = val.id;
-            }
-            $("#id_cliente").append(`<option value="${val.id}">${val.dni} - ${val.nombres}</option>`);
-        });
+function buscar_ruc() {
+    $("#resultado_ruc").empty();
+    $("#resultado_ruc").append('<span class="badge bg-warning">Buscando</span>');
 
-        $("#id_cliente").select2();
-        console.log(id_cliente_general);
-        $("#id_cliente").val(id_cliente_general).trigger('change');
-    });
+    var ruc = $("#n_documento").val();
+    var token = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJlbWFpbCI6ImFyYW5pYmFyLjA4ZGllZ29AZ21haWwuY29tIn0.dhWaDdyyyFkPDAYdTHhliwqa7i3J_royA_5fSJLQ9mE";
+    if ($("#n_documento").val().length == 8) {
+        $.get(`https://dniruc.apisperu.com/api/v1/dni/${ruc}?token=${token}`)
+            .done(function (response) {
+                // Procesar la respuesta JSON
+                try {
+                    var obj = response; // No es necesario parsear si ya es un objeto
+                    if (obj.success) {
+                        $("#resultado_ruc").empty();
+                        $("#resultado_ruc").append('<span class="badge bg-success">' + ruc + ' - ' + obj.nombres + ' ' + obj.apellidoPaterno + ' ' + obj.apellidoMaterno + '</span>');
+                        $("#razon_social").val(obj.nombres + ' ' + obj.apellidoPaterno + ' ' + obj.apellidoMaterno);
+                        $("#direccion").val("");
+                    } else {
+                        $.get(`util.php?dni=${ruc}`)
+                            .done(function (response) {
+                                try {
+                                    var obj = JSON.parse(response);
+                                    $("#resultado_ruc").empty();
+                                    $("#resultado_ruc").append('<span class="badge bg-success">' + $("#n_documento").val() + ' - ' + obj.nombre + '</span>');
+                                    console.log("DOS " + obj.nombre);
+                                    $("#razon_social").val(obj.nombre);
+                                    $("#direccion").val(obj.direccion);
+                                } catch (e) {
+                                    console.error("Error al procesar la respuesta2:", e);
+                                    alert("Hubo un problema al procesar la respuesta2 del servidor.");
+                                }
+                            })
+                            .fail(function (jqXHR, textStatus, errorThrown) {
+                                // Manejar errores
+                                console.error("Error en la solicitud2:", textStatus, errorThrown);
+                                alert("Hubo un error al consultar el RUC. Por favor, inténtalo nuevamente.");
+                            });
+                    }
+
+                } catch (e) {
+                    console.error("Error al procesar la respuesta:", e);
+                    alert("Hubo un problema al procesar la respuesta del servidor.");
+                }
+            })
+            .fail(function (jqXHR, textStatus, errorThrown) {
+                // Manejar errores
+                console.error("Error en la solicitud:", textStatus, errorThrown);
+                alert("Hubo un error al consultar el RUC. Por favor, inténtalo nuevamente.");
+            });
+    } else {
+        $.get(`https://dniruc.apisperu.com/api/v1/ruc/${ruc}?token=${token}`)
+            .done(function (response) {
+                // Procesar la respuesta JSON
+                try {
+                    var obj = response; // No es necesario parsear si ya es un objeto
+                    $("#resultado_ruc").empty();
+                    $("#resultado_ruc").append('<span class="badge bg-success">' + ruc + ' - ' + obj.razonSocial + '</span>');
+                    console.log("UNO " + obj.razonSocial);
+                    $("#razon_social").val(obj.razonSocial || "No disponible");
+                    $("#direccion").val(obj.direccion || "No disponible");
+
+                    if ($("#razon_social").val() == "No disponible" /*1 == 1*/) {
+                        console.log("Entro a no disponile");
+                        $.get(`util.php?ruc=${ruc}`)
+                            .done(function (response) {
+                                try {
+                                    var obj = JSON.parse(response);
+                                    $("#resultado_ruc").empty();
+                                    $("#resultado_ruc").append('<span class="badge bg-success">' + $("#n_documento").val() + ' - ' + obj.nombre + '</span>');
+                                    console.log("DOS " + obj.nombre);
+                                    $("#razon_social").val(obj.nombre);
+                                    $("#direccion").val(obj.direccion);
+                                } catch (e) {
+                                    console.error("Error al procesar la respuesta2:", e);
+                                    alert("Hubo un problema al procesar la respuesta2 del servidor.");
+                                }
+                            })
+                            .fail(function (jqXHR, textStatus, errorThrown) {
+                                // Manejar errores
+                                console.error("Error en la solicitud2:", textStatus, errorThrown);
+                                alert("Hubo un error al consultar el RUC. Por favor, inténtalo nuevamente.");
+                            });
+                    }
+                } catch (e) {
+                    console.error("Error al procesar la respuesta:", e);
+                    alert("Hubo un problema al procesar la respuesta del servidor.");
+                }
+            })
+            .fail(function (jqXHR, textStatus, errorThrown) {
+                // Manejar errores
+                console.error("Error en la solicitud:", textStatus, errorThrown);
+                alert("Hubo un error al consultar el RUC. Por favor, inténtalo nuevamente.");
+            });
+    }
 }
-
 function anadirItem(id, nombre, precio) {
     console.log($("#producto"));
     console.log(nombre);

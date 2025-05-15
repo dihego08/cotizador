@@ -133,23 +133,7 @@ switch ($accion) {
 
     case 'lista_clientes':
         $data = json_decode($mono->select_all("clientes", true));
-        $values = array();
-        foreach ($data as $key) {
-            $sucursal = json_decode($mono->select_one("sucursales", array("id" => $key->id_sucursal)));
-
-
-            if (empty($sucursal) || is_null($sucursal)) {
-                $key->sucursal = '';
-            } else {
-                $key->sucursal = $sucursal->sucursal;
-            }
-
-            $tipo_cliente = json_decode($mono->select_one("tipos_clientes", array("id" => $key->id_tipo_cliente)));
-            $key->tipo_cliente = $tipo_cliente->tipo_cliente;
-
-            $values[] = $key;
-        }
-        echo json_encode($values);
+        echo json_encode($data);
         break;
     case 'lista_clientes_sucursal':
         echo $mono->select_all_where("clientes", array("id_sucursal" => $_SESSION['id_sucursal']), true);

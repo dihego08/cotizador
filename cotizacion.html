@@ -13,7 +13,7 @@
     <link rel="icon" type="image/png" sizes="16x16" href="img/favicon-16x16.png">
     <link rel="manifest" href="/site.webmanifest">
 
-    <title>El Secreto de Roxana - Nueva Venta</title>
+    <title>El Cotizador - Nueva Venta</title>
 
     <!-- Custom fonts for this template-->
     <link href="vendor/fontawesome-free/css/all.min.css" rel="stylesheet" type="text/css">
@@ -77,12 +77,9 @@
                 </a>
                 <div id="collapsePages" class="collapse" aria-labelledby="headingPages" data-parent="#accordionSidebar">
                     <div class="bg-brown py-2 collapse-inner rounded">
-                        <a class="collapse-item" href="sucursales.html">Sucursales</a>
-                        <a class="collapse-item" href="usuarios.html">Usuarios</a>
                         <a class="collapse-item" href="clientes.html">Clientes</a>
                         <a class="collapse-item" href="productos.html">Productos</a>
                         <a class="collapse-item" href="categorias.html">Categorias</a>
-                        <a class="collapse-item" href="gastos.html">Gastos</a>
                     </div>
                 </div>
             </li>
@@ -100,41 +97,16 @@
                 <a class="nav-link collapsed" href="#" data-toggle="collapse" data-target="#collapsePOS"
                     aria-expanded="true" aria-controls="collapsePOS">
                     <i class="fas fa-fw fa-folder"></i>
-                    <span>Ventas</span>
+                    <span>Cotizaciones</span>
                 </a>
                 <div id="collapsePOS" class="collapse show" aria-labelledby="headingPages"
                     data-parent="#accordionSidebar">
                     <div class="bg-brown py-2 collapse-inner rounded">
-                        <a class="collapse-item active" href="venta.html">Nueva Venta</a>
-                        <a class="collapse-item" href="ventas.html">Lista Ventas</a>
+                        <a class="collapse-item active" href="cotizacion.html">Nueva Cotización</a>
+                        <a class="collapse-item" href="cotizaciones.html">Lista Cotizaciones</a>
                     </div>
                 </div>
             </li>
-            <!-- Divider -->
-            <hr class="sidebar-divider">
-
-            <!-- Heading -->
-            <div class="sidebar-heading">
-                Almacenes
-            </div>
-
-            <!-- Nav Item - Pages Collapse Menu -->
-            <li class="nav-item">
-                <a class="nav-link" href="#" data-toggle="collapse" data-target="#collapseStock" aria-expanded="true"
-                    aria-controls="collapseStock">
-                    <i class="fas fa-fw fa-folder"></i>
-                    <span>Stocks</span>
-                </a>
-                <div id="collapseStock" class="collapse" aria-labelledby="headingPages" data-parent="#accordionSidebar">
-                    <div class="bg-brown py-2 collapse-inner rounded">
-                        <a class="collapse-item" href="abastecer_manual.html">Abastecer Manual</a>
-                        <a class="collapse-item" href="abastecer.html">Abastecer Sucursal</a>
-                        <a class="collapse-item" href="stock.html">Stock Actual</a>
-                        <a class="collapse-item" href="movimientos.html">Movimientos</a>
-                    </div>
-                </div>
-            </li>
-
             <hr class="sidebar-divider d-none d-md-block">
 
             <!-- Sidebar Toggler (Sidebar) -->
@@ -202,76 +174,99 @@
                 <div class="container-fluid">
                     <h1 class="h3 mb-4 text-gray-800">Nueva Venta</h1>
                     <div class="row">
-                        <div class="col-md-12 row">
-                            <div class="form-group col-md-4 my-2">
-                                <label>Cliente</label>
-                            </div>
-                            <div class="form-group col-md-4 my-2">
-                                <label for="producto">Producto</label>
-                            </div>
-                            <div class="form-group col-md-3 my-2">
-                                <label for="cantidad">Cantidad</label>
-                            </div>
-                            <div class="form-group col-md-1 my-2"></div>
-                            <div class="form-group col-md-4 my-2">
-
-                                <div class="input-group mb-3" style="display: flex;">
-                                    <select name="" id="id_cliente" class="form-control">
-                                        <option value="0">--SELECCIONE--</option>
-                                    </select>
+                        <div class="col-md-6">
+                            <label for="n_documento">Cliente:</label>
+                            <!--<input type="text" class="form-control" id="doc_cliente">-->
+                            <div class="input-group mb-3">
+                                <input type="text" class="form-control" placeholder="Número de Documento"
+                                    aria-label="Número de Documento" id="n_documento" aria-describedby="basic-addon2">
+                                <div class="input-group-append">
+                                    <span class="btn btn-success" id="basic-addon2" onclick="buscar_ruc();"><i class="fa fa-search"></i></span>
                                 </div>
                             </div>
 
-                            <div class="form-group col-md-4 my-2">
+                        </div>
+                        <div class="col-md-6">
+                            <label for="">Razón Social</label>
+                            <input type="text" disabled class="form-control" id="razon_social">
+                        </div>
+                        <div class="col-md-12 mt-2">
+                            <label for="direccion">Dirección</label>
+                            <input type="text" name="" id="direccion" class="form-control">
+                        </div>
+                        <div class="col-md-6">
+                            <label for="celular">Celular:</label>
+                            <input type="text" class="form-control" id="celular">
+                        </div>
+                        <div class="col-md-6">
+                            <label for="correo">Correo</label>
+                            <input type="text" class="form-control" id="correo">
+                        </div>
+                        <div class="col-md-12 mt-2">
+                            <label for="identificador">Identificador</label>
+                            <input type="text" name="" id="identificador" class="form-control">
+                        </div>
 
-                                <div class="input-group mb-3" style="display: flex;">
-                                    <input type="text" class="form-control" id="producto">
-                                </div>
-                            </div>
-                            <div class="form-group col-md-3 my-2">
+                    </div>
+                    <div class="col-md-12 row">
+                        <div class="form-group col-md-6 my-2">
+                            <label for="producto">Producto</label>
+                        </div>
+                        <div class="form-group col-md-5 my-2">
+                            <label for="cantidad">Cantidad</label>
+                        </div>
+                        <div class="form-group col-md-1 my-2"></div>
 
-                                <div class="input-group mb-3" style="display: flex;">
-                                    <input type="text" class="form-control" id="cantidad">
-                                </div>
+                        <div class="form-group col-md-6 my-2">
+
+                            <div class="input-group mb-3" style="display: flex;">
+                                <input type="text" class="form-control" id="producto">
                             </div>
-                            <div class="form-group col-md-1 my-2">
-                                <span class="btn btn-outline-success w-100" id="add-item">
-                                    <i class="fa fa-check"></i>
-                                </span>
+                        </div>
+                        <div class="form-group col-md-5 my-2">
+
+                            <div class="input-group mb-3" style="display: flex;">
+                                <input type="text" class="form-control" id="cantidad">
                             </div>
-                            <hr class="w-100">
-                            <div class="w-100 col-md-3" id="div_lista_ventas">
-                                <div class="order-empty" style="text-align: center; margin: 48px; color: #DDD;">
-                                    <i class="fa fa-shopping-cart" role="img" aria-label="Shopping cart"
-                                        title="Shopping cart" style="font-size: 64px;"></i>
-                                    <h1 style="font-size: 20px;">La lista esta vacia.</h1>
-                                </div>
+                        </div>
+                        <div class="form-group col-md-1 my-2">
+                            <span class="btn btn-outline-success w-100" id="add-item">
+                                <i class="fa fa-check"></i>
+                            </span>
+                        </div>
+                        <hr class="w-100">
+                        <div class="w-100 col-md-3" id="div_lista_ventas">
+                            <div class="order-empty" style="text-align: center; margin: 48px; color: #DDD;">
+                                <i class="fa fa-shopping-cart" role="img" aria-label="Shopping cart"
+                                    title="Shopping cart" style="font-size: 64px;"></i>
+                                <h1 style="font-size: 20px;">La lista esta vacia.</h1>
                             </div>
-                            <div class="form-group col-md-3 my-2">
-                                <label>Forma de Pago</label>
-                                <select class="form-control" id="id_forma_pago" name="id_forma_pago">
-                                    <option value="0">--SELECCIONE--</option>
-                                </select>
-                            </div>
-                            <div class="col-md-6">
-                                <table class="table">
-                                    <tbody>
-                                        <tr>
-                                            <th scope="row" width="50%" style="text-align: right;">
-                                                Total:
-                                            </th>
-                                            <td id="">
-                                                <span id="total_detalle_span">S/ </span>
-                                                <input type="hidden" name="" readonly id="total" class="form-control">
-                                            </td>
-                                        </tr>
-                                    </tbody>
-                                </table>
-                                <hr>
-                                <div class="w-100 text-center">
-                                    <button class="btn btn-success" id="guardar_venta">Guardar Venta</button>
-                                    <button class="btn btn-danger" onclick="limpiar_formulario();">Cancelar</button>
-                                </div>
+                        </div>
+                        <div class="form-group col-md-3 my-2">
+                            <label>Forma de Pago</label>
+                            <select class="form-control" id="id_forma_pago" name="id_forma_pago">
+                                <option value="0">--SELECCIONE--</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <table class="table">
+                                <tbody>
+                                    <tr>
+                                        <th scope="row" width="50%" style="text-align: right;">
+                                            Total:
+                                        </th>
+                                        <td id="">
+                                            <span id="total_detalle_span">S/ </span>
+                                            <input type="hidden" name="" readonly id="total" class="form-control">
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                            <hr>
+                            <div class="w-100 text-center">
+                                <button class="btn btn-success" id="guardar_venta">Guardar
+                                    Venta</button>
+                                <button class="btn btn-danger" onclick="limpiar_formulario();">Cancelar</button>
                             </div>
                         </div>
                     </div>
@@ -322,7 +317,7 @@
     <script src="js/util.js"></script>
     <script src="https://code.jquery.com/ui/1.14.1/jquery-ui.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    <script src="js/venta.js"></script>
+    <script src="js/cotizacion.js"></script>
 </body>
 
 </html>
