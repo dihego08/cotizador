@@ -2,7 +2,9 @@ import React from 'react';
 import { NavLink } from 'react-router-dom';
 import {
   LayoutDashboard,
+  Target,
   FileText,
+  Receipt,
   Users,
   Headset,
   Boxes,
@@ -31,7 +33,9 @@ export default function Sidebar({ isOpen, onClose }) {
     {
       title: 'OPERACIONES',
       items: [
+        { name: 'CRM & Pipeline', path: '/crm', icon: Target, permission: 'clientes' },
         { name: 'Cotizaciones', path: '/cotizaciones', icon: FileText, permission: 'cotizaciones' },
+        { name: 'Ventas y Cobranzas', path: '/ventas', icon: Receipt, permission: 'cotizaciones' },
         { name: 'Clientes', path: '/clientes', icon: Users, permission: 'clientes' },
         { name: 'Helpdesk Soporte', path: '/helpdesk', icon: Headset, permission: 'helpdesk' },
       ],

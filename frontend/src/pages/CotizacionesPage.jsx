@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   FileText,
   Plus,
@@ -12,15 +13,21 @@ import {
   X,
   AlertCircle,
   Building,
+  Receipt,
+  ArrowRight,
 } from 'lucide-react';
 import api from '../api/client';
 import { useAuth } from '../context/AuthContext';
+import { useCompany } from '../context/CompanyContext';
 
 export default function CotizacionesPage() {
   const { user } = useAuth();
+  const { activeEmpresa } = useCompany();
+  const navigate = useNavigate();
   const [cotizaciones, setCotizaciones] = useState([]);
   const [clientes, setClientes] = useState([]);
   const [productos, setProductos] = useState([]);
+  const [almacenes, setAlmacenes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [estadoFilter, setEstadoFilter] = useState('');
@@ -31,7 +38,7 @@ export default function CotizacionesPage() {
     { id_producto: '', descripcion: '', marca: '', cantidad: 1, unidad_medida: 'UND', precio_unitario: 0 },
   ]);
   const [formData, setFormData] = useState({
-    id_empresa: user?.empresa?.id_empresa || 2,
+    id_empresa: activeEmpresa?.id_empresa || user?.empresa?.id_empresa || 2,
     id_cliente: '',
     asunto: '',
     atencion: '',
@@ -49,6 +56,21 @@ export default function CotizacionesPage() {
   });
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState('');
+
+  // Emitir Venta Modal
+  const [emitirModalOpen, setEmitirModalOpen] = useState(false);
+  const [selectedQuoteForVenta, setSelectedQuoteForVenta] = useState(null);
+  const [emitirData, setEmitirData] = useState({
+    tipo_documento: 'FACTURA',
+    serie: 'F001',
+    forma_pago: 'Contado',
+    fecha_emision: new Date().toISOString().split('T')[0],
+    fecha_vencimiento: '',
+    descontar_stock_almacen_id: '',
+    observaciones: '',
+  });
+  const [emitirSaving, setEmitirSaving] = useState(false);
+  const [emitirError, setEmitirError] = useState('');
 
   // Print/View Modal
   const [selectedQuote, setSelectedQuote] = useState(null);
@@ -71,12 +93,14 @@ export default function CotizacionesPage() {
 
   const loadResources = async () => {
     try {
-      const [cliRes, prodRes] = await Promise.all([
+      const [cliRes, prodRes, almRes] = await Promise.all([
         api.get('/clientes', { params: { per_page: 100 } }),
         api.get('/productos', { params: { per_page: 100 } }),
+        api.get('/almacenes'),
       ]);
       if (cliRes.data?.data) setClientes(cliRes.data.data.data || cliRes.data.data);
       if (prodRes.data?.data) setProductos(prodRes.data.data.data || prodRes.data.data);
+      if (almRes.data?.data) setAlmacenes(almRes.data.data);
     } catch (e) {
       console.error(e);
     }
@@ -172,6 +196,49 @@ export default function CotizacionesPage() {
       }
     } catch (e) {
       alert('Error al cargar detalle de cotización.');
+    }
+  };
+
+  const handleOpenEmitirVenta = (quote) => {
+    setSelectedQuoteForVenta(quote);
+    setEmitirData({
+      tipo_documento: 'FACTURA',
+      serie: 'F001',
+      forma_pago: quote.forma_pago || 'Contado',
+      fecha_emision: new Date().toISOString().split('T')[0],
+      fecha_vencimiento: '',
+      descontar_stock_almacen_id: '',
+      observaciones: `Emisión de venta originada de la Cotización ${quote.numero_cotizacion}`,
+    });
+    setEmitirError('');
+    setEmitirModalOpen(true);
+  };
+
+  const handleTipoDocChange = (tipo) => {
+    const defaultSerie = tipo === 'FACTURA' ? 'F001' : tipo === 'BOLETA' ? 'B001' : 'NV01';
+    setEmitirData({
+      ...emitirData,
+      tipo_documento: tipo,
+      serie: defaultSerie,
+    });
+  };
+
+  const handleEmitirVentaSubmit = async (e) => {
+    e.preventDefault();
+    setEmitirSaving(true);
+    setEmitirError('');
+
+    try {
+      await api.post(`/ventas/from-cotizacion/${selectedQuoteForVenta.id_cotizacion}`, emitirData);
+      setEmitirModalOpen(false);
+      navigate('/ventas');
+    } catch (err) {
+      setEmitirError(
+        err.response?.data?.message ||
+        'Error al emitir el comprobante de venta a partir de la cotización.'
+      );
+    } finally {
+      setEmitirSaving(false);
     }
   };
 
@@ -321,6 +388,16 @@ export default function CotizacionesPage() {
                               <XCircle className="h-3.5 w-3.5" />
                             </button>
                           </>
+                        )}
+                        {q.estado === 'APROBADA' && (
+                          <button
+                            onClick={() => handleOpenEmitirVenta(q)}
+                            title="Emitir Comprobante (Factura / Boleta / Nota de Venta)"
+                            className="flex items-center gap-1 rounded-lg bg-indigo-50 px-2 py-1 text-xs font-semibold text-indigo-700 hover:bg-indigo-100 dark:bg-indigo-950/40 dark:text-indigo-300 dark:hover:bg-indigo-900/50 transition-colors"
+                          >
+                            <Receipt className="h-3.5 w-3.5" />
+                            <span className="hidden sm:inline">Emitir Venta</span>
+                          </button>
                         )}
                       </div>
                     </td>
@@ -739,6 +816,187 @@ export default function CotizacionesPage() {
                 </div>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+      {/* Modal Emitir Comprobante de Venta desde Cotización */}
+      {emitirModalOpen && selectedQuoteForVenta && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-xs overflow-y-auto">
+          <div className="relative w-full max-w-xl rounded-3xl border border-slate-200 bg-white p-6 shadow-2xl dark:border-slate-800 dark:bg-slate-900 my-8">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-4 dark:border-slate-800">
+              <div className="flex items-center gap-2.5">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600 dark:bg-indigo-950/50 dark:text-indigo-400">
+                  <Receipt className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-900 dark:text-white">
+                    Emitir Documento de Venta
+                  </h3>
+                  <p className="text-xs text-slate-400 font-mono">
+                    Cotización: {selectedQuoteForVenta.numero_cotizacion}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setEmitirModalOpen(false)}
+                className="rounded-xl p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-800"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {emitirError && (
+              <div className="mt-3 flex items-center gap-2 rounded-xl bg-rose-50 p-3 text-xs text-rose-700 dark:bg-rose-950/40 dark:text-rose-400">
+                <AlertCircle className="h-4 w-4 shrink-0" />
+                <span>{emitirError}</span>
+              </div>
+            )}
+
+            {/* Summary card */}
+            <div className="mt-4 rounded-2xl bg-slate-50 p-3.5 dark:bg-slate-800/50 border border-slate-200/60 dark:border-slate-700/60 space-y-2 text-xs">
+              <div className="flex justify-between items-center">
+                <span className="text-slate-500">Cliente / Razón Social:</span>
+                <span className="font-bold text-slate-800 dark:text-slate-200">
+                  {selectedQuoteForVenta.cliente?.razon_social}
+                </span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-slate-500">Documento / RUC:</span>
+                <span className="font-mono text-slate-700 dark:text-slate-300">
+                  {selectedQuoteForVenta.cliente?.num_documento}
+                </span>
+              </div>
+              <div className="flex justify-between items-center border-t border-slate-200 dark:border-slate-700 pt-2 font-bold">
+                <span className="text-slate-700 dark:text-slate-300">Total a Facturar:</span>
+                <span className="font-mono text-indigo-600 dark:text-indigo-400 text-sm">
+                  {selectedQuoteForVenta.moneda} {Number(selectedQuoteForVenta.total).toFixed(2)}
+                </span>
+              </div>
+            </div>
+
+            <form onSubmit={handleEmitirVentaSubmit} className="mt-4 space-y-4">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    Tipo de Comprobante
+                  </label>
+                  <select
+                    value={emitirData.tipo_documento}
+                    onChange={(e) => handleTipoDocChange(e.target.value)}
+                    className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-900 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 dark:border-slate-800 dark:bg-slate-900 dark:text-white"
+                  >
+                    <option value="FACTURA">Factura Electrónica (IGV 18%)</option>
+                    <option value="BOLETA">Boleta de Venta (IGV 18%)</option>
+                    <option value="NOTA_VENTA">Nota de Venta (Interno - Sin IGV)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    Serie
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={emitirData.serie}
+                    onChange={(e) => setEmitirData({ ...emitirData, serie: e.target.value.toUpperCase() })}
+                    placeholder="Ej. F001, B001, NV01"
+                    className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-900 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 dark:border-slate-800 dark:bg-slate-900 dark:text-white"
+                  >
+                  </input>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    Fecha de Emisión
+                  </label>
+                  <input
+                    type="date"
+                    required
+                    value={emitirData.fecha_emision}
+                    onChange={(e) => setEmitirData({ ...emitirData, fecha_emision: e.target.value })}
+                    className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-900 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 dark:border-slate-800 dark:bg-slate-900 dark:text-white"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    Fecha Vencimiento (Opcional)
+                  </label>
+                  <input
+                    type="date"
+                    value={emitirData.fecha_vencimiento}
+                    onChange={(e) => setEmitirData({ ...emitirData, fecha_vencimiento: e.target.value })}
+                    className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-900 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 dark:border-slate-800 dark:bg-slate-900 dark:text-white"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    Condición de Pago
+                  </label>
+                  <input
+                    type="text"
+                    value={emitirData.forma_pago}
+                    onChange={(e) => setEmitirData({ ...emitirData, forma_pago: e.target.value })}
+                    placeholder="Ej. Contado / Crédito 15 días"
+                    className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-900 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 dark:border-slate-800 dark:bg-slate-900 dark:text-white"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    Descontar Stock Físico
+                  </label>
+                  <select
+                    value={emitirData.descontar_stock_almacen_id}
+                    onChange={(e) => setEmitirData({ ...emitirData, descontar_stock_almacen_id: e.target.value })}
+                    className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-900 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 dark:border-slate-800 dark:bg-slate-900 dark:text-white"
+                  >
+                    <option value="">No descontar (Solo Servicios / Sin Kardex)</option>
+                    {almacenes.map((a) => (
+                      <option key={a.id_almacen} value={a.id_almacen}>
+                        {a.nombre_almacen}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                  Observaciones / Notas para el Documento
+                </label>
+                <textarea
+                  rows="2"
+                  value={emitirData.observaciones}
+                  onChange={(e) => setEmitirData({ ...emitirData, observaciones: e.target.value })}
+                  className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-900 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 dark:border-slate-800 dark:bg-slate-900 dark:text-white"
+                />
+              </div>
+
+              <div className="flex justify-end gap-3 pt-3 border-t border-slate-100 dark:border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setEmitirModalOpen(false)}
+                  className="rounded-xl px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={emitirSaving}
+                  className="flex items-center gap-1.5 rounded-xl bg-indigo-600 px-5 py-2 text-xs font-semibold text-white shadow-sm hover:bg-indigo-700 transition-colors disabled:opacity-50"
+                >
+                  <Receipt className="h-4 w-4" />
+                  <span>{emitirSaving ? 'Emitiendo comprobante...' : 'Generar Comprobante'}</span>
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

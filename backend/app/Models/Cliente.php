@@ -26,6 +26,8 @@ class Cliente extends Model
         'telefono',
         'atencion',
         'es_cliente_helpdesk',
+        'estado_crm',
+        'origen_lead',
         'created_at',
     ];
 
@@ -47,5 +49,15 @@ class Cliente extends Model
     public function atencionesHelpdesk()
     {
         return $this->hasMany(HelpdeskAtencion::class, 'id_cliente', 'id_cliente');
+    }
+
+    public function oportunidades()
+    {
+        return $this->hasMany(CrmOportunidad::class, 'id_cliente', 'id_cliente');
+    }
+
+    public function actividades()
+    {
+        return $this->hasMany(CrmActividad::class, 'id_cliente', 'id_cliente');
     }
 }

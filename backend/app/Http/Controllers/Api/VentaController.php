@@ -75,6 +75,12 @@ class VentaController extends Controller
             'detalles.*.unidad_medida' => 'nullable|string|max:20',
             'detalles.*.cantidad' => 'required|numeric|min:0.01',
             'detalles.*.precio_unitario' => 'required|numeric|min:0',
+            'pago_inicial' => 'nullable|array',
+            'pago_inicial.monto' => 'nullable|numeric|min:0.01',
+            'pago_inicial.metodo_pago' => 'nullable|string',
+            'pago_inicial.referencia_operacion' => 'nullable|string',
+            'pago_inicial.banco' => 'nullable|string',
+            'pago_inicial.notas' => 'nullable|string',
         ]);
 
         $venta = DB::transaction(function () use ($validated, $usuario) {
@@ -176,6 +182,31 @@ class VentaController extends Controller
             foreach ($itemsDetalles as $det) {
                 $det['id_venta'] = $venta->id_venta;
                 VentaDetalle::create($det);
+            }
+
+            // Registrar pago inicial inmediato si fue enviado
+            if (!empty($validated['pago_inicial']['monto']) && (float)$validated['pago_inicial']['monto'] > 0) {
+                $pagoMonto = min((float)$validated['pago_inicial']['monto'], $total);
+                VentaPago::create([
+                    'id_venta' => $venta->id_venta,
+                    'id_usuario' => $usuario->id_usuario,
+                    'monto' => $pagoMonto,
+                    'fecha_pago' => $validated['fecha_emision'],
+                    'metodo_pago' => $validated['pago_inicial']['metodo_pago'] ?? 'EFECTIVO',
+                    'referencia_operacion' => $validated['pago_inicial']['referencia_operacion'] ?? null,
+                    'banco' => $validated['pago_inicial']['banco'] ?? null,
+                    'notas' => $validated['pago_inicial']['notas'] ?? 'Pago inicial registrado en emisión',
+                ]);
+
+                $nuevoTotalPagado = $pagoMonto;
+                $nuevoSaldo = max(0, round($total - $nuevoTotalPagado, 2));
+                $nuevoEstado = ($nuevoSaldo <= 0.001) ? 'PAGADO' : 'PARCIAL';
+
+                $venta->update([
+                    'total_pagado' => $nuevoTotalPagado,
+                    'saldo_pendiente' => $nuevoSaldo,
+                    'estado_pago' => $nuevoEstado,
+                ]);
             }
 
             return $venta;

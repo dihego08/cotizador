@@ -58,7 +58,25 @@ Las credenciales provienen de la base de datos importada (`sistema_almacen 18-10
 6. **Cotizaciones Comerciales**: Constructor de cotizaciones con ítems dinámicos, cálculo automático de IGV (18%), estados de aprobación y vista de impresión/PDF.
 7. **Mesa de Ayuda & Helpdesk**: Registro de incidencias con cronómetro interactivo en vivo (iniciar, pausar, reanudar), canales de soporte y evaluación de satisfacción.
 8. **Clientes & Contactos**: Directorio corporativo (DNI/RUC) y contactos vinculados.
-9. **Almacenes**: Sucursales físicas con responsables y empresas asignadas.
-10. **Tipo de Cambio**: Histórico cambiario PEN/USD y widget para actualización diaria.
-11. **Gestión de Empresas**: Soporte multi-empresa y datos fiscales.
-12. **Usuarios y Permisos**: Matriz de permisos granular por módulo y gestión de accesos.
+9. **Mini-CRM & Pipeline de Oportunidades**: Embudo visual tipo Kanban con 6 etapas de venta (Prospecto, Contactado, Propuesta, Negociación, Ganado, Perdido), cálculo de valor en pipeline, bitácora cronológica de actividades (llamadas, reuniones, WhatsApp, notas) y conversión a cotización.
+10. **Ventas y Cobranzas (Facturas / Boletas / Notas de Venta)**: Emisión directa o desde cotizaciones aprobadas, control de cobranzas por cuotas/amortizaciones parciales, semáforo de saldo pendiente y comprobante imprimible.
+11. **Almacenes**: Sucursales físicas con responsables y empresas asignadas.
+12. **Tipo de Cambio**: Histórico cambiario PEN/USD y widget para actualización diaria.
+13. **Gestión de Empresas & Selector Multi-Empresa**: Soporte multi-empresa con switcher en el Navbar para emitir cotizaciones y ventas con los datos fiscales de la empresa seleccionada.
+14. **Usuarios y Permisos**: Matriz de permisos granular por módulo y gestión de accesos.
+
+---
+
+## 🗄️ Actualizaciones de Base de Datos para Nuevos Módulos
+
+Para habilitar los nuevos módulos en tu base de datos MySQL (local o en phpMyAdmin en Hostinger `u622044135_sis_almacen`), ejecuta los siguientes scripts SQL ubicados en la raíz del proyecto:
+
+### 1. Documentos de Venta y Cobranzas
+📄 [actualizacion_ventas_cobranzas.sql](actualizacion_ventas_cobranzas.sql)
+- Crea `personal_access_tokens`, `ventas`, `venta_detalles` y `venta_pagos`.
+
+### 2. Mini-CRM y Pipeline de Tratos
+📄 [actualizacion_crm_pipeline.sql](actualizacion_crm_pipeline.sql)
+- Agrega campos `estado_crm` y `origen_lead` a `clientes`.
+- Crea `crm_oportunidades` (tratos, valores estimados, etapas, prioridades y probabilidades).
+- Crea `crm_actividades` (bitácora de llamadas, reuniones, WhatsApp y notas de seguimiento).

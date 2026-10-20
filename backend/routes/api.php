@@ -16,6 +16,7 @@ use App\Http\Controllers\Api\StockController;
 use App\Http\Controllers\Api\TipoCambioController;
 use App\Http\Controllers\Api\UsuarioController;
 use App\Http\Controllers\Api\VentaController;
+use App\Http\Controllers\Api\CrmController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -71,6 +72,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::apiResource('clientes', ClienteController::class);
     Route::post('/clientes/{id}/contactos', [ClienteController::class, 'addContacto']);
     Route::delete('/clientes/{id}/contactos/{contactoId}', [ClienteController::class, 'removeContacto']);
+
+    // Mini-CRM & Pipeline Comercial
+    Route::apiResource('crm/oportunidades', CrmController::class);
+    Route::patch('/crm/oportunidades/{id}/etapa', [CrmController::class, 'updateEtapa']);
+    Route::post('/crm/actividades', [CrmController::class, 'storeActividad']);
 
     // Cotizaciones
     Route::apiResource('cotizaciones', CotizacionController::class);
