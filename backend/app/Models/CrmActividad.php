@@ -21,18 +21,32 @@ class CrmActividad extends Model
         'tipo',
         'titulo',
         'descripcion',
+        'archivo_path',
+        'archivo_nombre',
+        'archivo_size',
         'fecha_actividad',
         'proximo_seguimiento',
         'completado',
         'created_at',
     ];
 
+    protected $appends = ['archivo_url'];
+
     protected $casts = [
+        'archivo_size' => 'integer',
         'fecha_actividad' => 'datetime',
         'proximo_seguimiento' => 'date',
         'completado' => 'boolean',
         'created_at' => 'datetime',
     ];
+
+    public function getArchivoUrlAttribute()
+    {
+        if (!$this->archivo_path) {
+            return null;
+        }
+        return url('api/crm/actividades/' . $this->id_actividad . '/archivo');
+    }
 
     public function empresa()
     {

@@ -76,7 +76,9 @@ Route::middleware('auth:sanctum')->group(function () {
     // Mini-CRM & Pipeline Comercial
     Route::apiResource('crm/oportunidades', CrmController::class);
     Route::patch('/crm/oportunidades/{id}/etapa', [CrmController::class, 'updateEtapa']);
+    Route::post('/crm/oportunidades/{id}/vincular-cotizacion', [CrmController::class, 'vincularCotizacion']);
     Route::post('/crm/actividades', [CrmController::class, 'storeActividad']);
+    Route::get('/crm/actividades/{id}/archivo', [CrmController::class, 'descargarArchivo']);
 
     // Cotizaciones
     Route::apiResource('cotizaciones', CotizacionController::class);

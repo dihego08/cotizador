@@ -6,14 +6,12 @@ import {
   Lock,
   ArrowRight,
   AlertCircle,
-  ShieldCheck,
-  CheckCircle2,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 export default function LoginPage() {
-  const [email, setEmail] = useState('admin@ruvindustrias.com');
-  const [password, setPassword] = useState('admin123');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const { login } = useAuth();
@@ -36,11 +34,6 @@ export default function LoginPage() {
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleQuickFill = (presetEmail, presetPass) => {
-    setEmail(presetEmail);
-    setPassword(presetPass);
   };
 
   return (
@@ -128,42 +121,6 @@ export default function LoginPage() {
               )}
             </button>
           </form>
-
-          {/* Quick preset selector */}
-          <div className="mt-8 border-t border-slate-700/60 pt-6">
-            <p className="mb-3 text-[11px] font-semibold uppercase tracking-wider text-slate-400 text-center">
-              Cuentas demo de la base de datos
-            </p>
-            <div className="space-y-2">
-              <button
-                type="button"
-                onClick={() => handleQuickFill('admin@ruvindustrias.com', 'admin123')}
-                className="flex w-full items-center justify-between rounded-xl bg-slate-900/50 p-2.5 text-left text-xs text-slate-300 transition-colors hover:bg-slate-900 hover:text-white border border-slate-700/40"
-              >
-                <div>
-                  <p className="font-semibold text-indigo-400">RUVINDUSTRIAS S.A.C.</p>
-                  <p className="text-[11px] text-slate-400">admin@ruvindustrias.com</p>
-                </div>
-                <span className="rounded-lg bg-indigo-500/20 px-2 py-0.5 text-[10px] font-medium text-indigo-300">
-                  Autocompletar
-                </span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => handleQuickFill('admin@almacen.com', 'admin123')}
-                className="flex w-full items-center justify-between rounded-xl bg-slate-900/50 p-2.5 text-left text-xs text-slate-300 transition-colors hover:bg-slate-900 hover:text-white border border-slate-700/40"
-              >
-                <div>
-                  <p className="font-semibold text-slate-200">Mi Empresa S.A.C.</p>
-                  <p className="text-[11px] text-slate-400">admin@almacen.com</p>
-                </div>
-                <span className="rounded-lg bg-slate-700/60 px-2 py-0.5 text-[10px] font-medium text-slate-300">
-                  Autocompletar
-                </span>
-              </button>
-            </div>
-          </div>
         </div>
       </div>
     </div>

@@ -34,7 +34,7 @@ CREATE TABLE IF NOT EXISTS `crm_oportunidades` (
   KEY `idx_crm_op_etapa` (`etapa`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- 3. Tabla de Bitácora de Actividades e Interacciones (Notas, Llamadas, WhatsApp, etc.)
+-- 3. Tabla de Bitácora de Actividades e Interacciones (Notas, Llamadas, WhatsApp, etc. con soporte de archivos adjuntos PDF/imágenes)
 CREATE TABLE IF NOT EXISTS `crm_actividades` (
   `id_actividad` int(11) NOT NULL AUTO_INCREMENT,
   `id_empresa` int(11) NOT NULL,
@@ -44,6 +44,9 @@ CREATE TABLE IF NOT EXISTS `crm_actividades` (
   `tipo` enum('LLAMADA','REUNION','WHATSAPP','CORREO','NOTA') NOT NULL DEFAULT 'NOTA',
   `titulo` varchar(150) NOT NULL,
   `descripcion` text DEFAULT NULL,
+  `archivo_path` varchar(255) DEFAULT NULL,
+  `archivo_nombre` varchar(255) DEFAULT NULL,
+  `archivo_size` int(11) DEFAULT NULL,
   `fecha_actividad` datetime NOT NULL DEFAULT current_timestamp(),
   `proximo_seguimiento` date DEFAULT NULL,
   `completado` tinyint(1) NOT NULL DEFAULT 1,
@@ -55,6 +58,13 @@ CREATE TABLE IF NOT EXISTS `crm_actividades` (
   KEY `idx_crm_act_usuario` (`id_usuario`),
   KEY `idx_crm_act_fecha` (`fecha_actividad`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- En caso de que ya hayas ejecutado el script y la tabla crm_actividades ya exista,
+-- ejecuta estas líneas para añadir las columnas de adjuntos:
+-- ALTER TABLE `crm_actividades`
+--   ADD COLUMN `archivo_path` varchar(255) DEFAULT NULL AFTER `descripcion`,
+--   ADD COLUMN `archivo_nombre` varchar(255) DEFAULT NULL AFTER `archivo_path`,
+--   ADD COLUMN `archivo_size` int(11) DEFAULT NULL AFTER `archivo_nombre`;
 
 -- 4. Llaves Foráneas de Integridad
 ALTER TABLE `crm_oportunidades`

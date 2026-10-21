@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import {
   FileText,
   Plus,
@@ -24,6 +24,7 @@ export default function CotizacionesPage() {
   const { user } = useAuth();
   const { activeEmpresa } = useCompany();
   const navigate = useNavigate();
+  const location = useLocation();
   const [cotizaciones, setCotizaciones] = useState([]);
   const [clientes, setClientes] = useState([]);
   const [productos, setProductos] = useState([]);
@@ -113,6 +114,18 @@ export default function CotizacionesPage() {
   useEffect(() => {
     fetchCotizaciones();
   }, [search, estadoFilter]);
+
+  useEffect(() => {
+    if (location.state?.nuevo) {
+      setFormData((prev) => ({
+        ...prev,
+        id_cliente: location.state.cliente_id || prev.id_cliente,
+        asunto: location.state.asunto || prev.asunto,
+      }));
+      setCreateModalOpen(true);
+      window.history.replaceState({}, document.title);
+    }
+  }, [location.state]);
 
   // Line item handlers
   const handleAddItem = () => {

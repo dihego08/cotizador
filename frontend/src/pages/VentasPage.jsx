@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import {
   Receipt,
   Plus,
@@ -22,6 +23,7 @@ import { useCompany } from '../context/CompanyContext';
 
 export default function VentasPage() {
   const { activeEmpresa } = useCompany();
+  const location = useLocation();
   const [ventas, setVentas] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -122,6 +124,18 @@ export default function VentasPage() {
   useEffect(() => {
     fetchVentas();
   }, [search, tipoFilter, pagoFilter, activeEmpresa]);
+
+  useEffect(() => {
+    if (location.state?.nuevo) {
+      setCreateFormData((prev) => ({
+        ...prev,
+        id_cliente: location.state.cliente_id || prev.id_cliente,
+        observaciones: location.state.titulo ? `Venta derivada del Trato CRM: ${location.state.titulo}` : prev.observaciones,
+      }));
+      setCreateModalOpen(true);
+      window.history.replaceState({}, document.title);
+    }
+  }, [location.state]);
 
   const handleOpenPayment = (venta) => {
     setSelectedVentaForPayment(venta);
