@@ -7,6 +7,7 @@ import Layout from './components/layout/Layout';
 import LoginPage from './pages/LoginPage';
 import DashboardPage from './pages/DashboardPage';
 import ProductosPage from './pages/ProductosPage';
+import CategoriasMarcasPage from './pages/CategoriasMarcasPage';
 import StockPage from './pages/StockPage';
 import MovimientosPage from './pages/MovimientosPage';
 import SeriesPage from './pages/SeriesPage';
@@ -64,6 +65,7 @@ export default function App() {
                 <Route path="ventas" element={<VentasPage />} />
                 <Route path="clientes" element={<ClientesPage />} />
                 <Route path="productos" element={<ProductosPage />} />
+                <Route path="categorias-marcas" element={<CategoriasMarcasPage />} />
                 <Route path="stock" element={<StockPage />} />
                 <Route path="movimientos" element={<MovimientosPage />} />
                 <Route path="series" element={<SeriesPage />} />

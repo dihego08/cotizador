@@ -10,7 +10,7 @@ class CategoriaController extends Controller
 {
     public function index()
     {
-        $categorias = Categoria::withCount('productos')->get();
+        $categorias = Categoria::withCount('productos')->orderBy('nombre_categoria')->get();
 
         return response()->json([
             'status' => 'success',
@@ -54,7 +54,15 @@ class CategoriaController extends Controller
 
     public function destroy($id)
     {
-        $categoria = Categoria::findOrFail($id);
+        $categoria = Categoria::withCount('productos')->findOrFail($id);
+
+        if ($categoria->productos_count > 0) {
+            return response()->json([
+                'status' => 'error',
+                'message' => "No se puede eliminar: la categoría está asignada a {$categoria->productos_count} producto(s).",
+            ], 422);
+        }
+
         $categoria->delete();
 
         return response()->json([

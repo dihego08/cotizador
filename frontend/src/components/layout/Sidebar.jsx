@@ -8,6 +8,7 @@ import {
   Users,
   Headset,
   Boxes,
+  Tags,
   Layers,
   ArrowLeftRight,
   Barcode,
@@ -45,6 +46,7 @@ export default function Sidebar({ isOpen, onClose }) {
       title: 'ALMACÉN E INVENTARIO',
       items: [
         { name: 'Productos y Servicios', path: '/productos', icon: Boxes, permission: 'productos' },
+        { name: 'Categorías y Marcas', path: '/categorias-marcas', icon: Tags, permission: 'categorias_marcas' },
         { name: 'Control de Stock', path: '/stock', icon: Layers, permission: 'stock' },
         { name: 'Movimientos', path: '/movimientos', icon: ArrowLeftRight, permission: 'movimientos' },
         { name: 'Series de Productos', path: '/series', icon: Barcode, permission: 'series' },

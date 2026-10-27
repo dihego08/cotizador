@@ -4,7 +4,9 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Marca;
+use App\Models\Producto;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class MarcaController extends Controller
 {
@@ -12,7 +14,7 @@ class MarcaController extends Controller
     {
         return response()->json([
             'status' => 'success',
-            'data' => Marca::orderBy('nombre_marca')->get(),
+            'data' => Marca::withCount('productos')->orderBy('nombre_marca')->get(),
         ]);
     }
 
@@ -39,7 +41,15 @@ class MarcaController extends Controller
             'nombre_marca' => 'required|string|max:100|unique:marcas,nombre_marca,' . $id . ',id_marca',
         ]);
 
-        $marca->update($validated);
+        DB::transaction(function () use ($marca, $validated) {
+            $nombreAnterior = $marca->nombre_marca;
+            $marca->update($validated);
+
+            // Mantener sincronizados los productos que usan el nombre anterior
+            if ($nombreAnterior !== $marca->nombre_marca) {
+                Producto::where('marca', $nombreAnterior)->update(['marca' => $marca->nombre_marca]);
+            }
+        });
 
         return response()->json([
             'status' => 'success',
@@ -50,7 +60,15 @@ class MarcaController extends Controller
 
     public function destroy($id)
     {
-        $marca = Marca::findOrFail($id);
+        $marca = Marca::withCount('productos')->findOrFail($id);
+
+        if ($marca->productos_count > 0) {
+            return response()->json([
+                'status' => 'error',
+                'message' => "No se puede eliminar: la marca está asignada a {$marca->productos_count} producto(s).",
+            ], 422);
+        }
+
         $marca->delete();
 
         return response()->json([

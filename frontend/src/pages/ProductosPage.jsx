@@ -18,6 +18,7 @@ import api from '../api/client';
 export default function ProductosPage() {
   const [productos, setProductos] = useState([]);
   const [categorias, setCategorias] = useState([]);
+  const [marcas, setMarcas] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [categoriaFilter, setCategoriaFilter] = useState('');
@@ -78,8 +79,20 @@ export default function ProductosPage() {
     }
   };
 
+  const fetchMarcas = async () => {
+    try {
+      const res = await api.get('/marcas');
+      if (res.data?.data) {
+        setMarcas(res.data.data);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
   useEffect(() => {
     fetchCategorias();
+    fetchMarcas();
   }, []);
 
   useEffect(() => {
@@ -482,13 +495,22 @@ export default function ProductosPage() {
                   <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
                     Marca
                   </label>
-                  <input
-                    type="text"
+                  <select
                     value={formData.marca}
                     onChange={(e) => setFormData({ ...formData, marca: e.target.value })}
-                    placeholder="Ej. Brother, HP, Cisco"
                     className="w-full rounded-xl border border-slate-200 bg-slate-50 p-2.5 text-xs text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
-                  />
+                  >
+                    <option value="">Seleccione Marca</option>
+                    {/* Marca antigua ingresada manualmente que no existe en el catálogo */}
+                    {formData.marca && !marcas.some((m) => m.nombre_marca === formData.marca) && (
+                      <option value={formData.marca}>{formData.marca} (no registrada)</option>
+                    )}
+                    {marcas.map((m) => (
+                      <option key={m.id_marca} value={m.nombre_marca}>
+                        {m.nombre_marca}
+                      </option>
+                    ))}
+                  </select>
                 </div>
 
                 <div>

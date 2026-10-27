@@ -16,4 +16,10 @@ class Marca extends Model
     protected $fillable = [
         'nombre_marca',
     ];
+
+    // productos.marca guarda el nombre de la marca (texto), no el id
+    public function productos()
+    {
+        return $this->hasMany(Producto::class, 'marca', 'nombre_marca');
+    }
 }
