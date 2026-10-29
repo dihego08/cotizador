@@ -737,16 +737,25 @@ export default function CotizacionesPage() {
             <div className="rounded-2xl border border-slate-200 p-6 bg-white text-slate-900 space-y-6">
               {/* Header */}
               <div className="flex justify-between items-start border-b border-slate-200 pb-4">
-                <div>
-                  <h2 className="text-lg font-black text-indigo-950">
-                    {selectedQuote.empresa?.razon_social || 'RUVINDUSTRIAS S.A.C.'}
-                  </h2>
-                  <p className="text-xs text-slate-600">
-                    RUC: {selectedQuote.empresa?.ruc || '20606370149'}
-                  </p>
-                  <p className="text-xs text-slate-500">
-                    {selectedQuote.empresa?.direccion || 'Arequipa, Perú'}
-                  </p>
+                <div className="flex items-start gap-4">
+                  {selectedQuote.empresa?.logo_url && (
+                    <img
+                      src={selectedQuote.empresa.logo_url}
+                      alt={selectedQuote.empresa.razon_social}
+                      className="h-16 max-w-[160px] object-contain"
+                    />
+                  )}
+                  <div>
+                    <h2 className="text-lg font-black text-indigo-950">
+                      {selectedQuote.empresa?.razon_social || 'RUVINDUSTRIAS S.A.C.'}
+                    </h2>
+                    <p className="text-xs text-slate-600">
+                      RUC: {selectedQuote.empresa?.ruc || '20606370149'}
+                    </p>
+                    <p className="text-xs text-slate-500">
+                      {selectedQuote.empresa?.direccion || 'Arequipa, Perú'}
+                    </p>
+                  </div>
                 </div>
                 <div className="text-right">
                   <div className="rounded-xl bg-indigo-50 p-2 border border-indigo-100 text-center">

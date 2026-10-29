@@ -30,6 +30,9 @@ Route::prefix('auth')->group(function () {
     Route::post('/login', [AuthController::class, 'login']);
 });
 
+// Logo de empresa (público para poder usarlo en <img> e impresiones)
+Route::get('/empresas/{id}/logo', [EmpresaController::class, 'logo']);
+
 // Rutas Protegidas por Sanctum Token
 Route::middleware('auth:sanctum')->group(function () {
     
@@ -44,6 +47,8 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Empresas
     Route::apiResource('empresas', EmpresaController::class);
+    Route::post('/empresas/{id}/logo', [EmpresaController::class, 'uploadLogo']);
+    Route::delete('/empresas/{id}/logo', [EmpresaController::class, 'deleteLogo']);
 
     // Almacenes
     Route::apiResource('almacenes', AlmacenController::class);

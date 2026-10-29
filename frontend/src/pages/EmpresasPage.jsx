@@ -10,6 +10,8 @@ import {
   Edit2,
   X,
   AlertCircle,
+  ImagePlus,
+  Trash2,
 } from 'lucide-react';
 import api from '../api/client';
 
@@ -29,6 +31,10 @@ export default function EmpresasPage() {
     cel_gerente: '',
     es_principal: false,
   });
+  // Logo: archivo nuevo seleccionado, vista previa y si se quitó el actual
+  const [logoFile, setLogoFile] = useState(null);
+  const [logoPreview, setLogoPreview] = useState(null);
+  const [removeLogo, setRemoveLogo] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
@@ -63,6 +69,7 @@ export default function EmpresasPage() {
       cel_gerente: '',
       es_principal: false,
     });
+    resetLogo(null);
     setError('');
     setModalOpen(true);
   };
@@ -80,8 +87,35 @@ export default function EmpresasPage() {
       cel_gerente: emp.cel_gerente || '',
       es_principal: !!emp.es_principal,
     });
+    resetLogo(emp.logo_url);
     setError('');
     setModalOpen(true);
+  };
+
+  const resetLogo = (url) => {
+    setLogoFile(null);
+    setLogoPreview(url || null);
+    setRemoveLogo(false);
+  };
+
+  const handleLogoChange = (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    if (file.size > 2 * 1024 * 1024) {
+      setError('El logo no debe superar los 2 MB.');
+      return;
+    }
+    setError('');
+    setLogoFile(file);
+    setLogoPreview(URL.createObjectURL(file));
+    setRemoveLogo(false);
+  };
+
+  const handleRemoveLogo = () => {
+    setLogoFile(null);
+    setLogoPreview(null);
+    setRemoveLogo(true);
   };
 
   const handleSave = async (e) => {
@@ -90,11 +124,25 @@ export default function EmpresasPage() {
     setError('');
 
     try {
+      let idEmpresa;
       if (editingEmpresa) {
         await api.put(`/empresas/${editingEmpresa.id_empresa}`, formData);
+        idEmpresa = editingEmpresa.id_empresa;
       } else {
-        await api.post('/empresas', formData);
+        const res = await api.post('/empresas', formData);
+        idEmpresa = res.data?.data?.id_empresa;
       }
+
+      if (logoFile && idEmpresa) {
+        const logoPayload = new FormData();
+        logoPayload.append('logo', logoFile);
+        await api.post(`/empresas/${idEmpresa}/logo`, logoPayload, {
+          headers: { 'Content-Type': 'multipart/form-data' },
+        });
+      } else if (removeLogo && editingEmpresa?.logo_url) {
+        await api.delete(`/empresas/${idEmpresa}/logo`);
+      }
+
       setModalOpen(false);
       fetchEmpresas();
     } catch (err) {
@@ -141,9 +189,15 @@ export default function EmpresasPage() {
               <div>
                 <div className="flex items-start justify-between">
                   <div className="flex items-center gap-3">
-                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-indigo-50 text-indigo-600 dark:bg-indigo-950/50 dark:text-indigo-400">
-                      <Building2 className="h-6 w-6" />
-                    </div>
+                    {emp.logo_url ? (
+                      <div className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-2xl border border-slate-200 bg-white p-1 dark:border-slate-700">
+                        <img src={emp.logo_url} alt={emp.razon_social} className="max-h-full max-w-full object-contain" />
+                      </div>
+                    ) : (
+                      <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-indigo-50 text-indigo-600 dark:bg-indigo-950/50 dark:text-indigo-400">
+                        <Building2 className="h-6 w-6" />
+                      </div>
+                    )}
                     <div>
                       <div className="flex items-center gap-2">
                         <h3 className="text-base font-bold text-slate-900 dark:text-white">
@@ -230,6 +284,46 @@ export default function EmpresasPage() {
             )}
 
             <form onSubmit={handleSave} className="mt-4 space-y-3.5">
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                  Logo de la Empresa
+                </label>
+                <div className="flex items-center gap-3">
+                  <div className="flex h-16 w-28 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-dashed border-slate-300 bg-white p-1.5 dark:border-slate-700">
+                    {logoPreview ? (
+                      <img src={logoPreview} alt="Logo" className="max-h-full max-w-full object-contain" />
+                    ) : (
+                      <Building2 className="h-6 w-6 text-slate-300" />
+                    )}
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <div className="flex items-center gap-2">
+                      <label className="flex cursor-pointer items-center gap-1.5 rounded-xl border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800">
+                        <ImagePlus className="h-3.5 w-3.5" />
+                        <span>{logoPreview ? 'Cambiar' : 'Subir logo'}</span>
+                        <input
+                          type="file"
+                          accept="image/png,image/jpeg,image/webp"
+                          onChange={handleLogoChange}
+                          className="hidden"
+                        />
+                      </label>
+                      {logoPreview && (
+                        <button
+                          type="button"
+                          onClick={handleRemoveLogo}
+                          className="flex items-center gap-1 rounded-xl px-2 py-1.5 text-xs font-semibold text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                          <span>Quitar</span>
+                        </button>
+                      )}
+                    </div>
+                    <p className="text-[11px] text-slate-400">PNG, JPG o WEBP. Máx. 2 MB.</p>
+                  </div>
+                </div>
+              </div>
+
               <div>
                 <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
                   Razón Social *

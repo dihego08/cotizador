@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Storage;
 
 class Empresa extends Model
 {
@@ -31,6 +32,23 @@ class Empresa extends Model
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
     ];
+
+    protected $appends = ['logo_url'];
+
+    // URL pública del logo (null si no tiene uno subido en el disco public)
+    public function getLogoUrlAttribute()
+    {
+        if (!$this->tieneLogo()) {
+            return null;
+        }
+
+        return url("/api/empresas/{$this->id_empresa}/logo") . '?v=' . optional($this->updated_at)->timestamp;
+    }
+
+    public function tieneLogo(): bool
+    {
+        return !empty($this->logo_path) && Storage::disk('public')->exists($this->logo_path);
+    }
 
     public function usuarios()
     {
