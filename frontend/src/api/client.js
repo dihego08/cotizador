@@ -20,15 +20,32 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
+const cerrarSesionLocal = (aviso) => {
+  localStorage.removeItem('token');
+  localStorage.removeItem('user');
+  if (aviso) {
+    sessionStorage.setItem('aviso_login', aviso);
+  }
+  if (window.location.pathname !== '/login') {
+    window.location.href = '/login';
+  }
+};
+
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response && error.response.status === 401) {
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      if (window.location.pathname !== '/login') {
-        window.location.href = '/login';
-      }
+    const status = error.response?.status;
+    const code = error.response?.data?.code;
+
+    if (status === 401) {
+      cerrarSesionLocal();
+    } else if (status === 403 && ['cuenta_suspendida', 'usuario_inactivo', 'sin_cuenta'].includes(code)) {
+      // Cuenta suspendida o usuario desactivado: se cierra la sesión mostrando el motivo
+      cerrarSesionLocal(error.response.data.message);
+    } else if (status === 403 && code === 'debe_cambiar_password' && window.location.pathname !== '/cambiar-password') {
+      window.location.href = '/cambiar-password';
+    } else if (status === 403 && code === 'solo_plataforma' && window.location.pathname !== '/plataforma') {
+      window.location.href = '/plataforma';
     }
     return Promise.reject(error);
   }

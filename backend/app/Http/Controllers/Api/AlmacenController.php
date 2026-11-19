@@ -3,17 +3,18 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Auditoria;
 use App\Models\Almacen;
+use App\Models\Usuario;
+use App\Rules\ExisteEnCuenta;
 use Illuminate\Http\Request;
 
 class AlmacenController extends Controller
 {
     public function index(Request $request)
     {
-        $idEmpresa = $request->query('id_empresa', $request->user()->id_empresa);
-
         $almacenes = Almacen::with(['empresa', 'responsable'])
-            ->when($idEmpresa, fn($q) => $q->where('id_empresa', $idEmpresa))
+            ->where('id_empresa', $this->empresaActiva($request))
             ->get();
 
         return response()->json([
@@ -22,9 +23,11 @@ class AlmacenController extends Controller
         ]);
     }
 
-    public function show($id)
+    public function show(Request $request, $id)
     {
-        $almacen = Almacen::with(['empresa', 'responsable', 'stock.producto'])->findOrFail($id);
+        $almacen = Almacen::with(['empresa', 'responsable', 'stock.producto'])
+            ->where('id_empresa', $this->empresaActiva($request))
+            ->findOrFail($id);
 
         return response()->json([
             'status' => 'success',
@@ -34,9 +37,11 @@ class AlmacenController extends Controller
 
     public function store(Request $request)
     {
+        $this->validarLimitePlan('almacenes', Almacen::class);
+
         $validated = $request->validate([
-            'id_empresa' => 'required|exists:empresas,id_empresa',
-            'id_responsable' => 'nullable|exists:usuarios,id_usuario',
+            'id_empresa' => ['required', $this->reglaEmpresa($request)],
+            'id_responsable' => ['nullable', new ExisteEnCuenta(Usuario::class)],
             'nombre_almacen' => 'required|string|max:100',
             'ubicacion' => 'nullable|string|max:255',
         ]);
@@ -52,11 +57,11 @@ class AlmacenController extends Controller
 
     public function update(Request $request, $id)
     {
-        $almacen = Almacen::findOrFail($id);
+        $almacen = Almacen::where('id_empresa', $this->empresaActiva($request))->findOrFail($id);
 
         $validated = $request->validate([
-            'id_empresa' => 'sometimes|required|exists:empresas,id_empresa',
-            'id_responsable' => 'nullable|exists:usuarios,id_usuario',
+            'id_empresa' => ['sometimes', 'required', $this->reglaEmpresa($request)],
+            'id_responsable' => ['nullable', new ExisteEnCuenta(Usuario::class)],
             'nombre_almacen' => 'sometimes|required|string|max:100',
             'ubicacion' => 'nullable|string|max:255',
         ]);
@@ -70,10 +75,11 @@ class AlmacenController extends Controller
         ]);
     }
 
-    public function destroy($id)
+    public function destroy(Request $request, $id)
     {
-        $almacen = Almacen::findOrFail($id);
+        $almacen = Almacen::where('id_empresa', $this->empresaActiva($request))->findOrFail($id);
         $almacen->delete();
+        Auditoria::registrar('ELIMINAR', 'almacen', $almacen->id_almacen, "Eliminó el almacén {$almacen->nombre_almacen}");
 
         return response()->json([
             'status' => 'success',

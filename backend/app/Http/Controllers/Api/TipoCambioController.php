@@ -29,7 +29,7 @@ class TipoCambioController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'fecha' => 'required|date|unique:tipo_cambio,fecha',
+            'fecha' => ['required', 'date', $this->unicoEnCuenta('tipo_cambio', 'fecha')],
             'compra' => 'required|numeric|min:0.0001',
             'venta' => 'required|numeric|min:0.0001',
         ]);

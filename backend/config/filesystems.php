@@ -15,6 +15,10 @@ return [
 
     'default' => env('FILESYSTEM_DISK', 'local'),
 
+    // Disco de los archivos que suben los usuarios (logos, adjuntos del CRM).
+    // En producción se recomienda un bucket privado: ARCHIVOS_DISK=s3
+    'archivos' => env('ARCHIVOS_DISK', 'public'),
+
     /*
     |--------------------------------------------------------------------------
     | Filesystem Disks

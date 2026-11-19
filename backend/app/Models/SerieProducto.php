@@ -2,15 +2,19 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\PerteneceACuentaPorPadre;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class SerieProducto extends Model
 {
-    use HasFactory;
+    use HasFactory, PerteneceACuentaPorPadre;
 
     protected $table = 'series_productos';
     protected $primaryKey = 'id_serie';
+
+    // Se aísla por cuenta a través de este registro padre
+    protected string $relacionCuenta = 'producto';
     public $timestamps = false;
 
     protected $fillable = [

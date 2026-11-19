@@ -21,7 +21,7 @@ class CategoriaController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'nombre_categoria' => 'required|string|max:100|unique:categorias,nombre_categoria',
+            'nombre_categoria' => ['required', 'string', 'max:100', $this->unicoEnCuenta('categorias', 'nombre_categoria')],
             'descripcion' => 'nullable|string|max:255',
         ]);
 
@@ -39,7 +39,10 @@ class CategoriaController extends Controller
         $categoria = Categoria::findOrFail($id);
 
         $validated = $request->validate([
-            'nombre_categoria' => 'sometimes|required|string|max:100|unique:categorias,nombre_categoria,' . $id . ',id_categoria',
+            'nombre_categoria' => [
+                'sometimes', 'required', 'string', 'max:100',
+                $this->unicoEnCuenta('categorias', 'nombre_categoria')->ignore($id, 'id_categoria'),
+            ],
             'descripcion' => 'nullable|string|max:255',
         ]);
 

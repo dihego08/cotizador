@@ -2,15 +2,19 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\PerteneceACuentaPorPadre;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class VentaPago extends Model
 {
-    use HasFactory;
+    use HasFactory, PerteneceACuentaPorPadre;
 
     protected $table = 'venta_pagos';
     protected $primaryKey = 'id_pago';
+
+    // Se aísla por cuenta a través de este registro padre
+    protected string $relacionCuenta = 'venta';
     public $timestamps = false;
 
     protected $fillable = [

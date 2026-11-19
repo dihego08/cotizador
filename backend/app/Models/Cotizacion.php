@@ -2,12 +2,13 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\PerteneceACuenta;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class Cotizacion extends Model
 {
-    use HasFactory;
+    use HasFactory, PerteneceACuenta;
 
     protected $table = 'cotizaciones';
     protected $primaryKey = 'id_cotizacion';

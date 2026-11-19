@@ -3,9 +3,13 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Auditoria;
+use App\Models\Categoria;
 use App\Models\Producto;
 use App\Models\Stock;
+use App\Rules\ExisteEnCuenta;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 class ProductoController extends Controller
 {
@@ -17,6 +21,7 @@ class ProductoController extends Controller
         $idAlmacen = $request->query('id_almacen');
 
         $query = Producto::with(['categoria', 'stock.almacen'])
+            ->where('id_empresa', $this->empresaActiva($request))
             ->when($search, function ($q) use ($search) {
                 $q->where(function ($sub) use ($search) {
                     $sub->where('nombre_producto', 'like', "%{$search}%")
@@ -39,9 +44,11 @@ class ProductoController extends Controller
         ]);
     }
 
-    public function show($id)
+    public function show(Request $request, $id)
     {
-        $producto = Producto::with(['categoria', 'stock.almacen', 'series'])->findOrFail($id);
+        $producto = Producto::with(['categoria', 'stock.almacen', 'series'])
+            ->where('id_empresa', $this->empresaActiva($request))
+            ->findOrFail($id);
 
         return response()->json([
             'status' => 'success',
@@ -51,10 +58,15 @@ class ProductoController extends Controller
 
     public function store(Request $request)
     {
+        $idEmpresa = $this->empresaActiva($request);
+
         $validated = $request->validate([
             'tipo' => 'required|in:PRODUCTO,SERVICIO',
-            'id_categoria' => 'nullable|exists:categorias,id_categoria',
-            'codigo_interno' => 'required|string|max:50|unique:productos,codigo_interno',
+            'id_categoria' => ['nullable', new ExisteEnCuenta(Categoria::class)],
+            'codigo_interno' => [
+                'required', 'string', 'max:50',
+                Rule::unique('productos', 'codigo_interno')->where('id_empresa', $idEmpresa),
+            ],
             'codigo_proveedor' => 'nullable|string|max:50',
             'nombre_producto' => 'required|string|max:150',
             'descripcion' => 'nullable|string',
@@ -76,6 +88,7 @@ class ProductoController extends Controller
             $validated['precio_venta'] = round($costo * (1 + ($utilidad / 100)), 2);
         }
 
+        $validated['id_empresa'] = $idEmpresa;
         $producto = Producto::create($validated);
 
         return response()->json([
@@ -87,12 +100,18 @@ class ProductoController extends Controller
 
     public function update(Request $request, $id)
     {
-        $producto = Producto::findOrFail($id);
+        $idEmpresa = $this->empresaActiva($request);
+        $producto = Producto::where('id_empresa', $idEmpresa)->findOrFail($id);
 
         $validated = $request->validate([
             'tipo' => 'sometimes|required|in:PRODUCTO,SERVICIO',
-            'id_categoria' => 'nullable|exists:categorias,id_categoria',
-            'codigo_interno' => 'sometimes|required|string|max:50|unique:productos,codigo_interno,' . $id . ',id_producto',
+            'id_categoria' => ['nullable', new ExisteEnCuenta(Categoria::class)],
+            'codigo_interno' => [
+                'sometimes', 'required', 'string', 'max:50',
+                Rule::unique('productos', 'codigo_interno')
+                    ->where('id_empresa', $idEmpresa)
+                    ->ignore($id, 'id_producto'),
+            ],
             'codigo_proveedor' => 'nullable|string|max:50',
             'nombre_producto' => 'sometimes|required|string|max:150',
             'descripcion' => 'nullable|string',
@@ -116,10 +135,11 @@ class ProductoController extends Controller
         ]);
     }
 
-    public function destroy($id)
+    public function destroy(Request $request, $id)
     {
-        $producto = Producto::findOrFail($id);
+        $producto = Producto::where('id_empresa', $this->empresaActiva($request))->findOrFail($id);
         $producto->delete();
+        Auditoria::registrar('ELIMINAR', 'producto', $producto->id_producto, "Eliminó el producto {$producto->codigo_interno} - {$producto->nombre_producto}");
 
         return response()->json([
             'status' => 'success',

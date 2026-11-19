@@ -3,8 +3,12 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Auditoria;
+use App\Models\Cliente;
 use App\Models\Cotizacion;
 use App\Models\CotizacionDetalle;
+use App\Models\Producto;
+use App\Rules\ExisteEnCuenta;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -12,17 +16,16 @@ class CotizacionController extends Controller
 {
     public function index(Request $request)
     {
-        $idEmpresa = $request->query('id_empresa', $request->user()->id_empresa);
         $estado = $request->query('estado');
         $search = $request->query('search');
 
         $cotizaciones = Cotizacion::with(['cliente', 'usuario', 'empresa', 'detalles'])
-            ->when($idEmpresa, fn($q) => $q->where('id_empresa', $idEmpresa))
+            ->where('id_empresa', $this->empresaActiva($request))
             ->when($estado, fn($q) => $q->where('estado', $estado))
             ->when($search, function ($q) use ($search) {
-                $q->where('numero_cotizacion', 'like', "%{$search}%")
+                $q->where(fn($sub) => $sub->where('numero_cotizacion', 'like', "%{$search}%")
                     ->orWhere('asunto', 'like', "%{$search}%")
-                    ->orWhereHas('cliente', fn($c) => $c->where('razon_social', 'like', "%{$search}%"));
+                    ->orWhereHas('cliente', fn($c) => $c->where('razon_social', 'like', "%{$search}%")));
             })
             ->orderBy('id_cotizacion', 'desc')
             ->paginate($request->query('per_page', 25));
@@ -33,9 +36,10 @@ class CotizacionController extends Controller
         ]);
     }
 
-    public function show($id)
+    public function show(Request $request, $id)
     {
         $cotizacion = Cotizacion::with(['cliente.contactos', 'usuario', 'empresa', 'detalles.producto'])
+            ->where('id_empresa', $this->empresaActiva($request))
             ->findOrFail($id);
 
         return response()->json([
@@ -49,8 +53,8 @@ class CotizacionController extends Controller
         $usuario = $request->user();
 
         $validated = $request->validate([
-            'id_empresa' => 'required|exists:empresas,id_empresa',
-            'id_cliente' => 'required|exists:clientes,id_cliente',
+            'id_empresa' => ['required', $this->reglaEmpresa($request)],
+            'id_cliente' => ['required', new ExisteEnCuenta(Cliente::class)],
             'asunto' => 'nullable|string|max:255',
             'atencion' => 'nullable|string|max:150',
             'forma_pago' => 'nullable|string|max:50',
@@ -65,7 +69,10 @@ class CotizacionController extends Controller
             'restricciones' => 'nullable|string',
             'fecha_emision' => 'required|date',
             'detalles' => 'required|array|min:1',
-            'detalles.*.id_producto' => 'nullable|exists:productos,id_producto',
+            'detalles.*.id_producto' => [
+                'nullable',
+                new ExisteEnCuenta(Producto::class, fn($q) => $q->where('id_empresa', $request->input('id_empresa'))),
+            ],
             'detalles.*.descripcion' => 'required|string|max:255',
             'detalles.*.nota_item' => 'nullable|string',
             'detalles.*.marca' => 'nullable|string|max:100',
@@ -76,7 +83,9 @@ class CotizacionController extends Controller
 
         $cotizacion = DB::transaction(function () use ($validated, $usuario) {
             $year = date('Y');
-            $lastQuote = Cotizacion::where('numero_cotizacion', 'like', "COT-{$year}-%")
+            // Correlativo propio de cada empresa
+            $lastQuote = Cotizacion::where('id_empresa', $validated['id_empresa'])
+                ->where('numero_cotizacion', 'like', "COT-{$year}-%")
                 ->orderBy('id_cotizacion', 'desc')
                 ->lockForUpdate()
                 ->first();
@@ -154,13 +163,14 @@ class CotizacionController extends Controller
 
     public function updateEstado(Request $request, $id)
     {
-        $cotizacion = Cotizacion::findOrFail($id);
+        $cotizacion = Cotizacion::where('id_empresa', $this->empresaActiva($request))->findOrFail($id);
 
         $validated = $request->validate([
             'estado' => 'required|in:PENDIENTE,APROBADA,RECHAZADA',
         ]);
 
         $cotizacion->update($validated);
+        Auditoria::registrar('CAMBIAR_ESTADO', 'cotizacion', $cotizacion->id_cotizacion, "Marcó la cotización {$cotizacion->numero_cotizacion} como {$validated['estado']}");
 
         return response()->json([
             'status' => 'success',

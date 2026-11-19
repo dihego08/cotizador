@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import {
   Package,
   Mail,
@@ -13,7 +13,12 @@ export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  // Motivo de un cierre de sesión forzado (cuenta suspendida, usuario desactivado)
+  const [error, setError] = useState(() => {
+    const aviso = sessionStorage.getItem('aviso_login');
+    sessionStorage.removeItem('aviso_login');
+    return aviso || '';
+  });
   const { login } = useAuth();
   const navigate = useNavigate();
 
@@ -23,13 +28,19 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      await login(email, password);
-      navigate('/');
+      const usuario = await login(email, password);
+      if (usuario?.debe_cambiar_password) {
+        navigate('/cambiar-password');
+      } else {
+        navigate(usuario?.cuenta?.es_plataforma ? '/plataforma' : '/');
+      }
     } catch (err) {
       setError(
-        err.response?.data?.errors?.email?.[0] ||
-        err.response?.data?.message ||
-        'Error al iniciar sesión. Verifica tus credenciales.'
+        err.response?.status === 429
+          ? 'Demasiados intentos. Espera un minuto antes de volver a intentarlo.'
+          : err.response?.data?.errors?.email?.[0] ||
+            err.response?.data?.message ||
+            'Error al iniciar sesión. Verifica tus credenciales.'
       );
     } finally {
       setLoading(false);
@@ -88,9 +99,14 @@ export default function LoginPage() {
             </div>
 
             <div>
-              <label className="mb-2 block text-xs font-semibold text-slate-300">
-                Contraseña
-              </label>
+              <div className="mb-2 flex items-center justify-between">
+                <label className="block text-xs font-semibold text-slate-300">
+                  Contraseña
+                </label>
+                <Link to="/recuperar-password" className="text-[11px] font-semibold text-indigo-400 hover:text-indigo-300">
+                  ¿Olvidaste tu contraseña?
+                </Link>
+              </div>
               <div className="relative">
                 <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-400">
                   <Lock className="h-4 w-4" />

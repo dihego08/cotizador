@@ -16,10 +16,14 @@ class DashboardController extends Controller
 {
     public function metrics(Request $request)
     {
-        $idEmpresa = $request->user()->id_empresa;
+        $idEmpresa = $this->empresaActiva($request);
+        $deLaEmpresa = fn($q) => $q->where('id_empresa', $idEmpresa);
 
-        $totalProductos = Producto::count();
-        $totalStockBajo = Stock::whereColumn('cantidad_actual', '<=', 'stock_minimo')->where('stock_minimo', '>', 0)->count();
+        $totalProductos = Producto::where('id_empresa', $idEmpresa)->count();
+        $totalStockBajo = Stock::whereHas('producto', $deLaEmpresa)
+            ->whereColumn('cantidad_actual', '<=', 'stock_minimo')
+            ->where('stock_minimo', '>', 0)
+            ->count();
         
         $cotizacionesPendientes = Cotizacion::where('id_empresa', $idEmpresa)
             ->where('estado', 'PENDIENTE')
@@ -44,6 +48,7 @@ class DashboardController extends Controller
             ->count();
 
         $ultimosMovimientos = Movimiento::with(['producto', 'almacen', 'usuario'])
+            ->whereHas('producto', $deLaEmpresa)
             ->orderBy('id_movimiento', 'desc')
             ->take(6)
             ->get();

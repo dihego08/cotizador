@@ -10,35 +10,39 @@ export const CompanyProvider = ({ children }) => {
   const [activeEmpresa, setActiveEmpresa] = useState(null);
   const [loadingEmpresas, setLoadingEmpresas] = useState(true);
 
-  useEffect(() => {
-    const fetchEmpresas = async () => {
-      if (!user) return;
-      try {
-        const res = await api.get('/empresas');
-        if (res.data?.data) {
-          const list = res.data.data;
-          setEmpresas(list);
+  const fetchEmpresas = async () => {
+    if (!user) return;
+    if (user.cuenta?.es_plataforma) {
+      setLoadingEmpresas(false);
+      return;
+    }
+    try {
+      const res = await api.get('/empresas');
+      if (res.data?.data) {
+        const list = res.data.data;
+        setEmpresas(list);
 
-          const savedId = localStorage.getItem('active_empresa_id');
-          const found = list.find((e) => e.id_empresa == savedId);
+        const savedId = localStorage.getItem('active_empresa_id');
+        const found = list.find((e) => e.id_empresa == savedId);
 
-          if (found) {
-            setActiveEmpresa(found);
-          } else if (user.empresa) {
-            setActiveEmpresa(user.empresa);
-            localStorage.setItem('active_empresa_id', user.empresa.id_empresa);
-          } else if (list.length > 0) {
-            setActiveEmpresa(list[0]);
-            localStorage.setItem('active_empresa_id', list[0].id_empresa);
-          }
+        if (found) {
+          setActiveEmpresa(found);
+        } else if (user.empresa) {
+          setActiveEmpresa(user.empresa);
+          localStorage.setItem('active_empresa_id', user.empresa.id_empresa);
+        } else if (list.length > 0) {
+          setActiveEmpresa(list[0]);
+          localStorage.setItem('active_empresa_id', list[0].id_empresa);
         }
-      } catch (err) {
-        console.error('Error fetching companies:', err);
-      } finally {
-        setLoadingEmpresas(false);
       }
-    };
+    } catch (err) {
+      console.error('Error fetching companies:', err);
+    } finally {
+      setLoadingEmpresas(false);
+    }
+  };
 
+  useEffect(() => {
     fetchEmpresas();
   }, [user]);
 
@@ -57,6 +61,7 @@ export const CompanyProvider = ({ children }) => {
         empresas,
         activeEmpresa,
         changeEmpresa,
+        refreshEmpresas: fetchEmpresas,
         loadingEmpresas,
       }}
     >

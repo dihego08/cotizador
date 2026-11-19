@@ -7,6 +7,7 @@ import {
   UserCheck,
   Shield,
   Edit2,
+  Trash2,
   Lock,
   X,
   AlertCircle,
@@ -121,6 +122,16 @@ export default function UsuariosPage() {
     }
   };
 
+  const handleDelete = async (u) => {
+    if (!window.confirm(`¿Seguro de eliminar al usuario "${u.nombre_usuario}"? Esta acción no se puede deshacer.`)) return;
+    try {
+      await api.delete(`/usuarios/${u.id_usuario}`);
+      fetchUsuarios();
+    } catch (err) {
+      alert(err.response?.data?.message || 'Error al eliminar usuario.');
+    }
+  };
+
   const handleSave = async (e) => {
     e.preventDefault();
     setSaving(true);
@@ -218,7 +229,7 @@ export default function UsuariosPage() {
                       </span>
                     </td>
                     <td className="py-3 px-4 text-center font-mono text-slate-600 dark:text-slate-400">
-                      {u.rol === 'ADMIN' ? 'Total (Admin)' : `${u.permisos?.length || 0} módulos`}
+                      {['ADMIN', 'SUPERADMIN'].includes(u.rol) ? 'Total (Admin)' : `${u.permisos?.length || 0} módulos`}
                     </td>
                     <td className="py-3 px-4 text-center">
                       <button
@@ -233,12 +244,20 @@ export default function UsuariosPage() {
                       </button>
                     </td>
                     <td className="py-3 px-4 text-center">
-                      <button
-                        onClick={() => handleOpenEdit(u)}
-                        className="flex h-7 w-7 mx-auto items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 hover:text-indigo-600 dark:text-slate-400 dark:hover:bg-slate-800"
-                      >
-                        <Edit2 className="h-3.5 w-3.5" />
-                      </button>
+                      <div className="flex items-center justify-center gap-1">
+                        <button
+                          onClick={() => handleOpenEdit(u)}
+                          className="flex h-7 w-7 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 hover:text-indigo-600 dark:text-slate-400 dark:hover:bg-slate-800"
+                        >
+                          <Edit2 className="h-3.5 w-3.5" />
+                        </button>
+                        <button
+                          onClick={() => handleDelete(u)}
+                          className="flex h-7 w-7 items-center justify-center rounded-lg text-slate-500 hover:bg-rose-50 hover:text-rose-600 dark:text-slate-400 dark:hover:bg-rose-950/40"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))
@@ -331,6 +350,9 @@ export default function UsuariosPage() {
                     onChange={(e) => setFormData({ ...formData, rol: e.target.value })}
                     className="w-full rounded-xl border border-slate-200 bg-slate-50 p-2 text-xs text-slate-900 font-bold dark:border-slate-700 dark:bg-slate-800 dark:text-white"
                   >
+                    {formData.rol === 'SUPERADMIN' && (
+                      <option value="SUPERADMIN">SUPERADMIN (Plataforma)</option>
+                    )}
                     <option value="ADMIN">ADMIN (Acceso Total)</option>
                     <option value="VENDEDOR">VENDEDOR</option>
                     <option value="TECNICO">TÉCNICO SOPORTE</option>
@@ -346,16 +368,17 @@ export default function UsuariosPage() {
                   <input
                     type="password"
                     required={!editingUser}
+                    minLength={8}
                     value={formData.password}
                     onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                    placeholder="••••••••"
+                    placeholder="Mínimo 8 caracteres"
                     className="w-full rounded-xl border border-slate-200 bg-slate-50 p-2 text-xs text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
                   />
                 </div>
               </div>
 
               {/* Modules / Permissions Matrix */}
-              {formData.rol !== 'ADMIN' && (
+              {!['ADMIN', 'SUPERADMIN'].includes(formData.rol) && (
                 <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
                   <p className="text-xs font-bold text-slate-900 dark:text-white mb-2">
                     Módulos y Permisos de Acceso Asignados:

@@ -12,7 +12,15 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        //
+        $middleware->prepend(\App\Http\Middleware\ReiniciarCuenta::class);
+
+        $middleware->alias([
+            'cuenta' => \App\Http\Middleware\EstablecerCuenta::class,
+            'permiso' => \App\Http\Middleware\RequierePermiso::class,
+            'superadmin' => \App\Http\Middleware\RequiereSuperAdmin::class,
+            'password.cambiado' => \App\Http\Middleware\RequierePasswordCambiado::class,
+            'cuenta.cliente' => \App\Http\Middleware\RequiereCuentaCliente::class,
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //

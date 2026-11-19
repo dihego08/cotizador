@@ -11,7 +11,8 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('personal_access_tokens', function (Blueprint $table) {
+        // Producción ya puede tener la tabla (creada con scripts SQL antes de usar migraciones)
+        if (! Schema::hasTable('personal_access_tokens')) Schema::create('personal_access_tokens', function (Blueprint $table) {
             $table->id();
             $table->morphs('tokenable');
             $table->text('name');

@@ -4,8 +4,10 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Cliente;
+use App\Models\Cotizacion;
 use App\Models\CrmActividad;
 use App\Models\CrmOportunidad;
+use App\Rules\ExisteEnCuenta;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -14,7 +16,6 @@ class CrmController extends Controller
 {
     public function index(Request $request)
     {
-        $idEmpresa = $request->query('id_empresa', $request->user()->id_empresa);
         $etapa = $request->query('etapa');
         $search = $request->query('search');
         $prioridad = $request->query('prioridad');
@@ -27,14 +28,14 @@ class CrmController extends Controller
             'actividades' => fn($q) => $q->orderBy('fecha_actividad', 'desc'),
         ])
             ->withCount('actividades')
-            ->when($idEmpresa, fn($q) => $q->where('id_empresa', $idEmpresa))
+            ->where('id_empresa', $this->empresaActiva($request))
             ->when($etapa, fn($q) => $q->where('etapa', $etapa))
             ->when($prioridad, fn($q) => $q->where('prioridad', $prioridad))
             ->when($misTratos, fn($q) => $q->where('id_usuario', $request->user()->id_usuario))
             ->when($search, function ($q) use ($search) {
-                $q->where('titulo', 'like', "%{$search}%")
-                    ->orWhereHas('cliente', fn($c) => $c->where('razon_social', 'like', "%{$search}%")
-                        ->orWhere('num_documento', 'like', "%{$search}%"));
+                $q->where(fn($sub) => $sub->where('titulo', 'like', "%{$search}%")
+                    ->orWhereHas('cliente', fn($c) => $c->where(fn($cc) => $cc->where('razon_social', 'like', "%{$search}%")
+                        ->orWhere('num_documento', 'like', "%{$search}%"))));
             });
 
         $oportunidades = $query->orderBy('updated_at', 'desc')->get();
@@ -55,16 +56,16 @@ class CrmController extends Controller
         ]);
     }
 
-    public function show($id)
+    public function show(Request $request, $id)
     {
         $oportunidad = CrmOportunidad::with([
             'cliente.contactos',
             'usuario',
             'cotizacion',
             'actividades.usuario'
-        ])->findOrFail($id);
+        ])->where('id_empresa', $this->empresaActiva($request))->findOrFail($id);
 
-        $cotizacionesCliente = \App\Models\Cotizacion::where('id_cliente', $oportunidad->id_cliente)
+        $cotizacionesCliente = Cotizacion::where('id_cliente', $oportunidad->id_cliente)
             ->where('id_empresa', $oportunidad->id_empresa)
             ->select('id_cotizacion', 'numero_cotizacion', 'asunto', 'total', 'moneda', 'estado', 'fecha_emision')
             ->orderBy('id_cotizacion', 'desc')
@@ -79,11 +80,11 @@ class CrmController extends Controller
 
     public function vincularCotizacion(Request $request, $id)
     {
-        $oportunidad = CrmOportunidad::findOrFail($id);
+        $oportunidad = CrmOportunidad::where('id_empresa', $this->empresaActiva($request))->findOrFail($id);
         $idCotizacion = $request->input('id_cotizacion');
 
         if ($idCotizacion) {
-            $cot = \App\Models\Cotizacion::findOrFail($idCotizacion);
+            $cot = Cotizacion::where('id_empresa', $oportunidad->id_empresa)->findOrFail($idCotizacion);
             $oportunidad->id_cotizacion = $cot->id_cotizacion;
             $oportunidad->valor_estimado = (float)$cot->total;
             $oportunidad->moneda = $cot->moneda;
@@ -133,6 +134,10 @@ class CrmController extends Controller
     {
         $usuario = $request->user();
 
+        $request->validate([
+            'id_empresa' => ['required', $this->reglaEmpresa($request)],
+        ]);
+
         // Soporte para crear prospecto rápido si no existe aún en la base de datos
         $idCliente = $request->input('id_cliente');
         if (empty($idCliente) && !empty($request->input('nuevo_cliente_nombre'))) {
@@ -149,10 +154,14 @@ class CrmController extends Controller
             $idCliente = $nuevoCliente->id_cliente;
         }
 
+        $deLaEmpresa = fn($q) => $q->where('id_empresa', $request->input('id_empresa'));
+
         $validated = $request->validate([
-            'id_empresa' => 'required|exists:empresas,id_empresa',
-            'id_cliente' => $idCliente ? 'nullable' : 'required|exists:clientes,id_cliente',
-            'id_cotizacion' => 'nullable|exists:cotizaciones,id_cotizacion',
+            'id_empresa' => ['required', $this->reglaEmpresa($request)],
+            'id_cliente' => $idCliente
+                ? ['nullable', new ExisteEnCuenta(Cliente::class)]
+                : ['required', new ExisteEnCuenta(Cliente::class)],
+            'id_cotizacion' => ['nullable', new ExisteEnCuenta(Cotizacion::class, $deLaEmpresa)],
             'titulo' => 'required|string|max:150',
             'descripcion' => 'nullable|string',
             'valor_estimado' => 'nullable|numeric|min:0',
@@ -178,7 +187,7 @@ class CrmController extends Controller
 
         // Si se vinculó una cotización existente, sincronizar su total y moneda
         if (!empty($validated['id_cotizacion'])) {
-            $cot = \App\Models\Cotizacion::find($validated['id_cotizacion']);
+            $cot = Cotizacion::find($validated['id_cotizacion']);
             if ($cot) {
                 $valorEstimado = (float)$cot->total;
                 $moneda = $cot->moneda;
@@ -223,12 +232,13 @@ class CrmController extends Controller
 
     public function update(Request $request, $id)
     {
-        $oportunidad = CrmOportunidad::findOrFail($id);
+        $oportunidad = CrmOportunidad::where('id_empresa', $this->empresaActiva($request))->findOrFail($id);
+        $deLaEmpresa = fn($q) => $q->where('id_empresa', $oportunidad->id_empresa);
 
         $validated = $request->validate([
             'titulo' => 'sometimes|required|string|max:150',
-            'id_cliente' => 'sometimes|required|exists:clientes,id_cliente',
-            'id_cotizacion' => 'nullable|exists:cotizaciones,id_cotizacion',
+            'id_cliente' => ['sometimes', 'required', new ExisteEnCuenta(Cliente::class)],
+            'id_cotizacion' => ['nullable', new ExisteEnCuenta(Cotizacion::class, $deLaEmpresa)],
             'descripcion' => 'nullable|string',
             'valor_estimado' => 'nullable|numeric|min:0',
             'moneda' => 'nullable|string|max:5',
@@ -241,7 +251,7 @@ class CrmController extends Controller
 
         // Sincronizar con cotización si se vinculó una
         if (isset($validated['id_cotizacion']) && $validated['id_cotizacion']) {
-            $cot = \App\Models\Cotizacion::find($validated['id_cotizacion']);
+            $cot = Cotizacion::find($validated['id_cotizacion']);
             if ($cot) {
                 $validated['valor_estimado'] = (float)$cot->total;
                 $validated['moneda'] = $cot->moneda;
@@ -279,7 +289,7 @@ class CrmController extends Controller
 
     public function updateEtapa(Request $request, $id)
     {
-        $oportunidad = CrmOportunidad::findOrFail($id);
+        $oportunidad = CrmOportunidad::where('id_empresa', $this->empresaActiva($request))->findOrFail($id);
 
         $validated = $request->validate([
             'etapa' => 'required|in:PROSPECTO,CONTACTADO,PROPUESTA,NEGOCIACION,GANADO,PERDIDO',
@@ -323,9 +333,9 @@ class CrmController extends Controller
         ]);
     }
 
-    public function destroy($id)
+    public function destroy(Request $request, $id)
     {
-        $oportunidad = CrmOportunidad::findOrFail($id);
+        $oportunidad = CrmOportunidad::where('id_empresa', $this->empresaActiva($request))->findOrFail($id);
         $oportunidad->delete();
 
         return response()->json([
@@ -339,9 +349,12 @@ class CrmController extends Controller
         $usuario = $request->user();
 
         $validated = $request->validate([
-            'id_empresa' => 'required|exists:empresas,id_empresa',
-            'id_cliente' => 'required|exists:clientes,id_cliente',
-            'id_oportunidad' => 'nullable|exists:crm_oportunidades,id_oportunidad',
+            'id_empresa' => ['required', $this->reglaEmpresa($request)],
+            'id_cliente' => ['required', new ExisteEnCuenta(Cliente::class)],
+            'id_oportunidad' => [
+                'nullable',
+                new ExisteEnCuenta(CrmOportunidad::class, fn($q) => $q->where('id_empresa', $request->input('id_empresa'))),
+            ],
             'tipo' => 'required|in:LLAMADA,REUNION,WHATSAPP,CORREO,NOTA',
             'titulo' => 'required|string|max:150',
             'descripcion' => 'nullable|string',
@@ -359,7 +372,7 @@ class CrmController extends Controller
             $file = $request->file('archivo');
             $archivoNombre = $file->getClientOriginalName();
             $archivoSize = $file->getSize();
-            $archivoPath = $file->store('crm_adjuntos', 'public');
+            $archivoPath = $file->store('cuentas/' . $this->idCuenta() . '/crm_adjuntos', config('filesystems.archivos'));
         }
 
         $actividad = CrmActividad::create([
@@ -385,17 +398,19 @@ class CrmController extends Controller
         ], 201);
     }
 
-    public function descargarArchivo($id)
+    public function descargarArchivo(Request $request, $id)
     {
-        $actividad = CrmActividad::findOrFail($id);
+        $actividad = CrmActividad::where('id_empresa', $this->empresaActiva($request))->findOrFail($id);
 
-        if (!$actividad->archivo_path || !Storage::disk('public')->exists($actividad->archivo_path)) {
+        $disco = Storage::disk(config('filesystems.archivos'));
+
+        if (!$actividad->archivo_path || !$disco->exists($actividad->archivo_path)) {
             return response()->json([
                 'status' => 'error',
                 'message' => 'El archivo adjunto no existe en el servidor.',
             ], 404);
         }
 
-        return Storage::disk('public')->download($actividad->archivo_path, $actividad->archivo_nombre);
+        return $disco->download($actividad->archivo_path, $actividad->archivo_nombre);
     }
 }

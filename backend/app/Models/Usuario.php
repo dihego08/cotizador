@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\PerteneceACuenta;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -9,7 +10,7 @@ use Laravel\Sanctum\HasApiTokens;
 
 class Usuario extends Authenticatable
 {
-    use HasApiTokens, HasFactory, Notifiable;
+    use HasApiTokens, HasFactory, Notifiable, PerteneceACuenta;
 
     protected $table = 'usuarios';
     protected $primaryKey = 'id_usuario';
@@ -21,6 +22,7 @@ class Usuario extends Authenticatable
         'rol',
         'email',
         'password_hash',
+        'debe_cambiar_password',
         'activo',
         'cargo',
         'celular',
@@ -34,6 +36,7 @@ class Usuario extends Authenticatable
 
     protected $casts = [
         'activo' => 'boolean',
+        'debe_cambiar_password' => 'boolean',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
     ];
@@ -61,9 +64,27 @@ class Usuario extends Authenticatable
         );
     }
 
+    /**
+     * Dueño de la plataforma: administra todas las cuentas desde el panel de plataforma.
+     * El rol solo vale dentro de la cuenta de plataforma; en cualquier otra cuenta no da acceso al panel.
+     */
+    public function esSuperAdmin(): bool
+    {
+        return strtoupper((string) $this->rol) === 'SUPERADMIN'
+            && (bool) $this->cuenta?->esPlataforma();
+    }
+
+    /**
+     * Administrador de su cuenta (acceso total dentro de ella).
+     */
+    public function esAdmin(): bool
+    {
+        return in_array(strtoupper((string) $this->rol), ['ADMIN', 'ADMINISTRADOR', 'SUPERADMIN']);
+    }
+
     public function hasPermiso(string $clave): bool
     {
-        if (strtoupper($this->rol) === 'ADMIN' || strtoupper($this->rol) === 'ADMINISTRADOR') {
+        if ($this->esAdmin()) {
             return true;
         }
 

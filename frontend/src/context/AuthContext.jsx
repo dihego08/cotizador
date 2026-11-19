@@ -42,6 +42,12 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  // Actualiza los datos del usuario (por ejemplo, después de cambiar la contraseña)
+  const updateUser = (nuevoUsuario) => {
+    setUser(nuevoUsuario);
+    localStorage.setItem('user', JSON.stringify(nuevoUsuario));
+  };
+
   const logout = async () => {
     try {
       if (token) {
@@ -59,7 +65,7 @@ export const AuthProvider = ({ children }) => {
 
   const hasPermission = (permissionKey) => {
     if (!user) return false;
-    if (user.is_admin || user.rol?.toUpperCase() === 'ADMIN' || user.rol?.toUpperCase() === 'ADMINISTRADOR') {
+    if (user.is_admin || ['ADMIN', 'ADMINISTRADOR', 'SUPERADMIN'].includes(user.rol?.toUpperCase())) {
       return true;
     }
     return Array.isArray(user.permisos) && user.permisos.includes(permissionKey);
@@ -73,7 +79,10 @@ export const AuthProvider = ({ children }) => {
         loading,
         login,
         logout,
+        updateUser,
         hasPermission,
+        // La cuenta de plataforma solo administra cuentas de clientes (no usa los módulos del negocio)
+        esPlataforma: !!user?.cuenta?.es_plataforma,
         isAuthenticated: !!token && !!user,
       }}
     >

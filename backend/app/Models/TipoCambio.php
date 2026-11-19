@@ -2,12 +2,13 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\PerteneceACuenta;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class TipoCambio extends Model
 {
-    use HasFactory;
+    use HasFactory, PerteneceACuenta;
 
     protected $table = 'tipo_cambio';
     protected $primaryKey = 'id_tc';

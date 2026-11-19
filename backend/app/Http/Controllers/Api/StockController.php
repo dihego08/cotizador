@@ -16,7 +16,10 @@ class StockController extends Controller
         $soloBajoStock = $request->boolean('solo_bajo_stock');
         $search = $request->query('search');
 
+        $idEmpresa = $this->empresaActiva($request);
+
         $query = Stock::with(['producto.categoria', 'almacen'])
+            ->whereHas('producto', fn($q) => $q->where('id_empresa', $idEmpresa))
             ->when($idAlmacen, fn($q) => $q->where('id_almacen', $idAlmacen))
             ->when($soloBajoStock, fn($q) => $q->whereColumn('cantidad_actual', '<=', 'stock_minimo'))
             ->when($search, function ($q) use ($search) {
@@ -40,7 +43,8 @@ class StockController extends Controller
 
     public function updateLimites(Request $request, $id)
     {
-        $stock = Stock::findOrFail($id);
+        $stock = Stock::whereHas('producto', fn($q) => $q->where('id_empresa', $this->empresaActiva($request)))
+            ->findOrFail($id);
 
         $validated = $request->validate([
             'stock_minimo' => 'required|numeric|min:0',

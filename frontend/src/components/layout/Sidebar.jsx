@@ -19,13 +19,21 @@ import {
   ChevronRight,
   Package,
   Activity,
+  Globe,
+  History,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
 export default function Sidebar({ isOpen, onClose }) {
-  const { hasPermission } = useAuth();
+  const { hasPermission, user, esPlataforma } = useAuth();
 
-  const navigationGroups = [
+  const grupoPlataforma = {
+    title: 'PLATAFORMA',
+    items: [{ name: 'Cuentas de Clientes', path: '/plataforma', icon: Globe, permission: null }],
+  };
+
+  // La cuenta de plataforma solo administra cuentas: no ve los módulos del negocio
+  const navigationGroups = esPlataforma ? [grupoPlataforma] : [
     {
       title: 'PRINCIPAL',
       items: [
@@ -64,8 +72,11 @@ export default function Sidebar({ isOpen, onClose }) {
         { name: 'Almacenes', path: '/almacenes', icon: Warehouse, permission: 'almacenes' },
         { name: 'Empresas', path: '/empresas', icon: Building2, permission: 'empresas' },
         { name: 'Usuarios y Permisos', path: '/usuarios', icon: ShieldCheck, permission: 'usuarios' },
+        { name: 'Registro de Actividad', path: '/auditoria', icon: History, permission: 'usuarios' },
       ],
     },
+    // Un SUPERADMIN de una instalación anterior a la separación todavía puede estar en una cuenta de negocio
+    ...(user?.is_superadmin ? [grupoPlataforma] : []),
   ];
 
   return (

@@ -2,18 +2,20 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\PerteneceACuenta;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class Producto extends Model
 {
-    use HasFactory;
+    use HasFactory, PerteneceACuenta;
 
     protected $table = 'productos';
     protected $primaryKey = 'id_producto';
     public $timestamps = true;
 
     protected $fillable = [
+        'id_empresa',
         'tipo',
         'id_categoria',
         'codigo_interno',
@@ -38,6 +40,11 @@ class Producto extends Model
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
     ];
+
+    public function empresa()
+    {
+        return $this->belongsTo(Empresa::class, 'id_empresa', 'id_empresa');
+    }
 
     public function categoria()
     {

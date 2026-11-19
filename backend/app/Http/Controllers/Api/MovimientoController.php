@@ -3,8 +3,12 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Auditoria;
+use App\Models\Almacen;
 use App\Models\Movimiento;
+use App\Models\Producto;
 use App\Models\Stock;
+use App\Rules\ExisteEnCuenta;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -19,7 +23,10 @@ class MovimientoController extends Controller
         $fechaInicio = $request->query('fecha_inicio');
         $fechaFin = $request->query('fecha_fin');
 
+        $idEmpresa = $this->empresaActiva($request);
+
         $movimientos = Movimiento::with(['producto', 'almacen', 'almacenOrigen', 'almacenDestino', 'usuario'])
+            ->whereHas('producto', fn($q) => $q->where('id_empresa', $idEmpresa))
             ->when($idAlmacen, function ($q) use ($idAlmacen) {
                 $q->where(fn($sub) => $sub->where('id_almacen', $idAlmacen)
                     ->orWhere('id_almacen_origen', $idAlmacen)
@@ -40,10 +47,15 @@ class MovimientoController extends Controller
 
     public function store(Request $request)
     {
+        $deLaEmpresa = fn($q) => $q->where('id_empresa', $this->empresaActiva($request));
+
         $validated = $request->validate([
-            'id_producto' => 'required|exists:productos,id_producto',
-            'id_almacen_origen' => 'required|exists:almacenes,id_almacen',
-            'id_almacen_destino' => 'nullable|required_if:tipo_movimiento,TRANSFERENCIA|exists:almacenes,id_almacen',
+            'id_producto' => ['required', new ExisteEnCuenta(Producto::class, $deLaEmpresa)],
+            'id_almacen_origen' => ['required', new ExisteEnCuenta(Almacen::class, $deLaEmpresa)],
+            'id_almacen_destino' => [
+                'nullable', 'required_if:tipo_movimiento,TRANSFERENCIA',
+                new ExisteEnCuenta(Almacen::class, $deLaEmpresa),
+            ],
             'tipo_movimiento' => 'required|in:ENTRADA,SALIDA,TRANSFERENCIA,AJUSTE',
             'cantidad' => 'required|numeric|min:0.01',
             'costo_unitario' => 'nullable|numeric|min:0',
@@ -111,6 +123,8 @@ class MovimientoController extends Controller
                 'referencia' => $validated['referencia'] ?? null,
             ]);
         });
+
+        Auditoria::registrar($movimiento->tipo_movimiento, 'movimiento', $movimiento->id_movimiento, "{$movimiento->tipo_movimiento} de {$movimiento->cantidad} unidad(es) del producto {$movimiento->producto->codigo_interno}");
 
         return response()->json([
             'status' => 'success',

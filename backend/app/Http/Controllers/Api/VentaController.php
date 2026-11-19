@@ -3,12 +3,17 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Almacen;
+use App\Models\Auditoria;
+use App\Models\Cliente;
 use App\Models\Cotizacion;
 use App\Models\Movimiento;
+use App\Models\Producto;
 use App\Models\Stock;
 use App\Models\Venta;
 use App\Models\VentaDetalle;
 use App\Models\VentaPago;
+use App\Rules\ExisteEnCuenta;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -17,19 +22,18 @@ class VentaController extends Controller
 {
     public function index(Request $request)
     {
-        $idEmpresa = $request->query('id_empresa', $request->user()->id_empresa);
         $tipoDoc = $request->query('tipo_documento');
         $estadoPago = $request->query('estado_pago');
         $search = $request->query('search');
 
         $ventas = Venta::with(['cliente', 'empresa', 'usuario', 'pagos', 'detalles'])
-            ->when($idEmpresa, fn($q) => $q->where('id_empresa', $idEmpresa))
+            ->where('id_empresa', $this->empresaActiva($request))
             ->when($tipoDoc, fn($q) => $q->where('tipo_documento', $tipoDoc))
             ->when($estadoPago, fn($q) => $q->where('estado_pago', $estadoPago))
             ->when($search, function ($q) use ($search) {
-                $q->where('serie_correlativo', 'like', "%{$search}%")
-                    ->orWhereHas('cliente', fn($c) => $c->where('razon_social', 'like', "%{$search}%")
-                        ->orWhere('num_documento', 'like', "%{$search}%"));
+                $q->where(fn($sub) => $sub->where('serie_correlativo', 'like', "%{$search}%")
+                    ->orWhereHas('cliente', fn($c) => $c->where(fn($cc) => $cc->where('razon_social', 'like', "%{$search}%")
+                        ->orWhere('num_documento', 'like', "%{$search}%"))));
             })
             ->orderBy('id_venta', 'desc')
             ->paginate($request->query('per_page', 25));
@@ -40,9 +44,10 @@ class VentaController extends Controller
         ]);
     }
 
-    public function show($id)
+    public function show(Request $request, $id)
     {
         $venta = Venta::with(['cliente', 'empresa', 'usuario', 'detalles.producto', 'pagos.usuario', 'cotizacion'])
+            ->where('id_empresa', $this->empresaActiva($request))
             ->findOrFail($id);
 
         return response()->json([
@@ -55,10 +60,12 @@ class VentaController extends Controller
     {
         $usuario = $request->user();
 
+        $deLaEmpresa = fn($q) => $q->where('id_empresa', $request->input('id_empresa'));
+
         $validated = $request->validate([
-            'id_empresa' => 'required|exists:empresas,id_empresa',
-            'id_cliente' => 'required|exists:clientes,id_cliente',
-            'id_cotizacion' => 'nullable|exists:cotizaciones,id_cotizacion',
+            'id_empresa' => ['required', $this->reglaEmpresa($request)],
+            'id_cliente' => ['required', new ExisteEnCuenta(Cliente::class)],
+            'id_cotizacion' => ['nullable', new ExisteEnCuenta(Cotizacion::class, $deLaEmpresa)],
             'tipo_documento' => 'required|in:FACTURA,BOLETA,NOTA_VENTA',
             'serie' => 'nullable|string|max:10',
             'moneda' => 'nullable|string|max:5',
@@ -67,9 +74,9 @@ class VentaController extends Controller
             'fecha_emision' => 'required|date',
             'fecha_vencimiento' => 'nullable|date',
             'observaciones' => 'nullable|string',
-            'descontar_stock_almacen_id' => 'nullable|exists:almacenes,id_almacen',
+            'descontar_stock_almacen_id' => ['nullable', new ExisteEnCuenta(Almacen::class, $deLaEmpresa)],
             'detalles' => 'required|array|min:1',
-            'detalles.*.id_producto' => 'nullable|exists:productos,id_producto',
+            'detalles.*.id_producto' => ['nullable', new ExisteEnCuenta(Producto::class, $deLaEmpresa)],
             'detalles.*.descripcion' => 'required|string|max:255',
             'detalles.*.marca' => 'nullable|string|max:100',
             'detalles.*.unidad_medida' => 'nullable|string|max:20',
@@ -88,7 +95,7 @@ class VentaController extends Controller
             $idEmpresa = $validated['id_empresa'];
 
             // Serie por defecto según tipo
-            $serie = $validated['serie'];
+            $serie = $validated['serie'] ?? null;
             if (empty($serie)) {
                 $serie = match ($tipo) {
                     'FACTURA' => 'F001',
@@ -212,6 +219,8 @@ class VentaController extends Controller
             return $venta;
         });
 
+        Auditoria::registrar('EMITIR', 'venta', $venta->id_venta, "Emitió {$venta->tipo_documento} {$venta->serie_correlativo} por {$venta->moneda} {$venta->total}");
+
         return response()->json([
             'status' => 'success',
             'message' => "Documento {$venta->serie_correlativo} emitido con éxito.",
@@ -221,12 +230,17 @@ class VentaController extends Controller
 
     public function fromCotizacion(Request $request, $idCotizacion)
     {
-        $cotizacion = Cotizacion::with('detalles')->findOrFail($idCotizacion);
+        $cotizacion = Cotizacion::with('detalles')
+            ->where('id_empresa', $this->empresaActiva($request))
+            ->findOrFail($idCotizacion);
 
         $validated = $request->validate([
             'tipo_documento' => 'required|in:FACTURA,BOLETA,NOTA_VENTA',
             'serie' => 'nullable|string|max:10',
-            'descontar_stock_almacen_id' => 'nullable|exists:almacenes,id_almacen',
+            'descontar_stock_almacen_id' => [
+                'nullable',
+                new ExisteEnCuenta(Almacen::class, fn($q) => $q->where('id_empresa', $cotizacion->id_empresa)),
+            ],
             'fecha_emision' => 'required|date',
             'fecha_vencimiento' => 'nullable|date',
             'forma_pago' => 'nullable|string|max:50',
@@ -262,7 +276,7 @@ class VentaController extends Controller
 
     public function registrarPago(Request $request, $id)
     {
-        $venta = Venta::findOrFail($id);
+        $venta = Venta::where('id_empresa', $this->empresaActiva($request))->findOrFail($id);
 
         if ($venta->estado_anulado) {
             throw ValidationException::withMessages([
@@ -307,6 +321,8 @@ class VentaController extends Controller
             return $pago;
         });
 
+        Auditoria::registrar('PAGO', 'venta', $venta->id_venta, "Registró un pago de {$venta->moneda} {$pago->monto} en {$venta->serie_correlativo}");
+
         return response()->json([
             'status' => 'success',
             'message' => 'Cobranza registrada correctamente.',
@@ -317,9 +333,9 @@ class VentaController extends Controller
         ], 201);
     }
 
-    public function anular($id)
+    public function anular(Request $request, $id)
     {
-        $venta = Venta::findOrFail($id);
+        $venta = Venta::where('id_empresa', $this->empresaActiva($request))->findOrFail($id);
 
         if ($venta->total_pagado > 0) {
             throw ValidationException::withMessages([
@@ -331,6 +347,8 @@ class VentaController extends Controller
             'estado_anulado' => true,
             'estado_pago' => 'PENDIENTE',
         ]);
+
+        Auditoria::registrar('ANULAR', 'venta', $venta->id_venta, "Anuló {$venta->tipo_documento} {$venta->serie_correlativo}");
 
         return response()->json([
             'status' => 'success',

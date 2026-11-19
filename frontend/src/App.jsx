@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
 import { CompanyProvider } from './context/CompanyContext';
@@ -20,9 +20,15 @@ import AlmacenesPage from './pages/AlmacenesPage';
 import EmpresasPage from './pages/EmpresasPage';
 import UsuariosPage from './pages/UsuariosPage';
 import TipoCambioPage from './pages/TipoCambioPage';
+import PlataformaPage from './pages/PlataformaPage';
+import AuditoriaPage from './pages/AuditoriaPage';
+import RecuperarPasswordPage from './pages/RecuperarPasswordPage';
+import RestablecerPasswordPage from './pages/RestablecerPasswordPage';
+import CambiarPasswordPage from './pages/CambiarPasswordPage';
 
 function ProtectedRoute({ children }) {
-  const { isAuthenticated, loading } = useAuth();
+  const { isAuthenticated, loading, user } = useAuth();
+  const location = useLocation();
 
   if (loading) {
     return (
@@ -39,6 +45,11 @@ function ProtectedRoute({ children }) {
     return <Navigate to="/login" replace />;
   }
 
+  // Con contraseña temporal solo se permite cambiarla
+  if (user?.debe_cambiar_password && location.pathname !== '/cambiar-password') {
+    return <Navigate to="/cambiar-password" replace />;
+  }
+
   return children;
 }
 
@@ -50,6 +61,16 @@ export default function App() {
           <BrowserRouter>
             <Routes>
               <Route path="/login" element={<LoginPage />} />
+              <Route path="/recuperar-password" element={<RecuperarPasswordPage />} />
+              <Route path="/restablecer-password" element={<RestablecerPasswordPage />} />
+              <Route
+                path="/cambiar-password"
+                element={
+                  <ProtectedRoute>
+                    <CambiarPasswordPage />
+                  </ProtectedRoute>
+                }
+              />
 
               <Route
                 path="/"
@@ -74,6 +95,8 @@ export default function App() {
                 <Route path="empresas" element={<EmpresasPage />} />
                 <Route path="usuarios" element={<UsuariosPage />} />
                 <Route path="tipo-cambio" element={<TipoCambioPage />} />
+                <Route path="plataforma" element={<PlataformaPage />} />
+                <Route path="auditoria" element={<AuditoriaPage />} />
               </Route>
 
               <Route path="*" element={<Navigate to="/" replace />} />

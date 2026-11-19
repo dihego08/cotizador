@@ -21,7 +21,7 @@ class MarcaController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'nombre_marca' => 'required|string|max:100|unique:marcas,nombre_marca',
+            'nombre_marca' => ['required', 'string', 'max:100', $this->unicoEnCuenta('marcas', 'nombre_marca')],
         ]);
 
         $marca = Marca::create($validated);
@@ -38,7 +38,10 @@ class MarcaController extends Controller
         $marca = Marca::findOrFail($id);
 
         $validated = $request->validate([
-            'nombre_marca' => 'required|string|max:100|unique:marcas,nombre_marca,' . $id . ',id_marca',
+            'nombre_marca' => [
+                'required', 'string', 'max:100',
+                $this->unicoEnCuenta('marcas', 'nombre_marca')->ignore($id, 'id_marca'),
+            ],
         ]);
 
         DB::transaction(function () use ($marca, $validated) {

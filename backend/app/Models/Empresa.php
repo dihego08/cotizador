@@ -2,13 +2,14 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\PerteneceACuenta;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Storage;
 
 class Empresa extends Model
 {
-    use HasFactory;
+    use HasFactory, PerteneceACuenta;
 
     protected $table = 'empresas';
     protected $primaryKey = 'id_empresa';
@@ -47,7 +48,7 @@ class Empresa extends Model
 
     public function tieneLogo(): bool
     {
-        return !empty($this->logo_path) && Storage::disk('public')->exists($this->logo_path);
+        return !empty($this->logo_path) && Storage::disk(config('filesystems.archivos'))->exists($this->logo_path);
     }
 
     public function usuarios()

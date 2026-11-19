@@ -3,9 +3,13 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Cliente;
+use App\Models\ClienteContacto;
 use App\Models\HelpdeskAtencion;
 use App\Models\HelpdeskCategoria;
 use App\Models\HelpdeskPausa;
+use App\Models\Usuario;
+use App\Rules\ExisteEnCuenta;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -27,21 +31,20 @@ class HelpdeskController extends Controller
 
     public function index(Request $request)
     {
-        $idEmpresa = $request->query('id_empresa', $request->user()->id_empresa);
         $estado = $request->query('estado_cierre');
         $categoria = $request->query('categoria');
         $search = $request->query('search');
 
         $atenciones = HelpdeskAtencion::with(['cliente', 'contacto', 'subcategoria', 'tecnico', 'tecnicoSeguimiento', 'pausas'])
-            ->when($idEmpresa, fn($q) => $q->where('id_empresa', $idEmpresa))
+            ->where('id_empresa', $this->empresaActiva($request))
             ->when($estado, fn($q) => $q->where('estado_cierre', $estado))
             ->when($categoria, fn($q) => $q->where('categoria', $categoria))
             ->when($search, function ($q) use ($search) {
-                $q->where('codigo_ticket', 'like', "%{$search}%")
+                $q->where(fn($sub) => $sub->where('codigo_ticket', 'like', "%{$search}%")
                     ->orWhere('nombre_solicitante', 'like', "%{$search}%")
                     ->orWhere('documento_solicitante', 'like', "%{$search}%")
                     ->orWhere('descripcion_requerimiento', 'like', "%{$search}%")
-                    ->orWhereHas('cliente', fn($c) => $c->where('razon_social', 'like', "%{$search}%"));
+                    ->orWhereHas('cliente', fn($c) => $c->where('razon_social', 'like', "%{$search}%")));
             })
             ->orderBy('id_atencion', 'desc')
             ->paginate($request->query('per_page', 25));
@@ -52,9 +55,10 @@ class HelpdeskController extends Controller
         ]);
     }
 
-    public function show($id)
+    public function show(Request $request, $id)
     {
         $atencion = HelpdeskAtencion::with(['cliente', 'contacto', 'subcategoria', 'tecnico', 'tecnicoSeguimiento', 'pausas'])
+            ->where('id_empresa', $this->empresaActiva($request))
             ->findOrFail($id);
 
         return response()->json([
@@ -68,9 +72,12 @@ class HelpdeskController extends Controller
         $usuario = $request->user();
 
         $validated = $request->validate([
-            'id_empresa' => 'required|exists:empresas,id_empresa',
-            'id_cliente' => 'required|exists:clientes,id_cliente',
-            'id_contacto' => 'nullable|exists:cliente_contactos,id_contacto',
+            'id_empresa' => ['required', $this->reglaEmpresa($request)],
+            'id_cliente' => ['required', new ExisteEnCuenta(Cliente::class)],
+            'id_contacto' => [
+                'nullable',
+                new ExisteEnCuenta(ClienteContacto::class, fn($q) => $q->where('id_cliente', $request->input('id_cliente'))),
+            ],
             'tipo_usuario' => 'required|in:CORPORATIVO,PARTICULAR',
             'documento_solicitante' => 'required|string|max:20',
             'nombre_solicitante' => 'required|string|max:150',
@@ -83,7 +90,7 @@ class HelpdeskController extends Controller
             'nivel_satisfaccion' => 'nullable|integer|between:1,5',
             'acciones_programadas' => 'nullable|string',
             'fecha_proxima_revision' => 'nullable|date',
-            'id_tecnico_seguimiento' => 'nullable|exists:usuarios,id_usuario',
+            'id_tecnico_seguimiento' => ['nullable', new ExisteEnCuenta(Usuario::class)],
             'fecha_atencion' => 'required|date',
             'hora_inicio' => 'required|date',
             'hora_fin' => 'required|date',
@@ -93,7 +100,9 @@ class HelpdeskController extends Controller
 
         $atencion = DB::transaction(function () use ($validated, $usuario) {
             $year = date('Y');
-            $lastTicket = HelpdeskAtencion::where('codigo_ticket', 'like', "HD-{$year}-%")
+            // Correlativo propio de cada empresa
+            $lastTicket = HelpdeskAtencion::where('id_empresa', $validated['id_empresa'])
+                ->where('codigo_ticket', 'like', "HD-{$year}-%")
                 ->orderBy('id_atencion', 'desc')
                 ->lockForUpdate()
                 ->first();
@@ -128,7 +137,7 @@ class HelpdeskController extends Controller
 
     public function registrarPausa(Request $request, $id)
     {
-        $atencion = HelpdeskAtencion::findOrFail($id);
+        $atencion = HelpdeskAtencion::where('id_empresa', $this->empresaActiva($request))->findOrFail($id);
 
         $validated = $request->validate([
             'motivo_pausa' => 'nullable|string|max:150',
@@ -147,9 +156,11 @@ class HelpdeskController extends Controller
         ]);
     }
 
-    public function reanudarPausa($id)
+    public function reanudarPausa(Request $request, $id)
     {
-        $pausa = HelpdeskPausa::where('id_atencion', $id)
+        $atencion = HelpdeskAtencion::where('id_empresa', $this->empresaActiva($request))->findOrFail($id);
+
+        $pausa = HelpdeskPausa::where('id_atencion', $atencion->id_atencion)
             ->whereNull('hora_fin_pausa')
             ->latest('id_pausa')
             ->firstOrFail();
@@ -159,7 +170,6 @@ class HelpdeskController extends Controller
 
         $segundos = $horaFin->diffInSeconds($pausa->hora_inicio_pausa);
 
-        $atencion = HelpdeskAtencion::findOrFail($id);
         $atencion->increment('tiempo_pausa_segundos', $segundos);
 
         return response()->json([

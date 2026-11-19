@@ -2,15 +2,19 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\PerteneceACuentaPorPadre;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class ClienteContacto extends Model
 {
-    use HasFactory;
+    use HasFactory, PerteneceACuentaPorPadre;
 
     protected $table = 'cliente_contactos';
     protected $primaryKey = 'id_contacto';
+
+    // Se aísla por cuenta a través de este registro padre
+    protected string $relacionCuenta = 'cliente';
     public $timestamps = false;
 
     protected $fillable = [

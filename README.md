@@ -37,14 +37,35 @@ npm run dev
 
 ---
 
-## 🔐 Cuentas de Acceso Preconfiguradas
+## 🔐 Acceso
 
-Las credenciales provienen de la base de datos importada (`sistema_almacen 18-10-26.sql`):
+Las credenciales no se guardan en el repositorio. Para recuperar el acceso de un usuario use
+"¿Olvidaste tu contraseña?" en el login (requiere el correo configurado, ver Despliegue).
 
-| Empresa | Correo | Contraseña | Rol |
-| :--- | :--- | :--- | :--- |
-| **RUVINDUSTRIAS S.A.C.** | `admin@ruvindustrias.com` | `admin123` | Administrador / Gerente |
-| **Mi Empresa S.A.C.** | `admin@almacen.com` | `admin123` | Administrador |
+---
+
+## 🏢 Modelo multiempresa (SaaS)
+
+```
+Cuenta de plataforma (única, "Administración de la plataforma")
+ └─ Usuarios SUPERADMIN: solo el panel Plataforma → Cuentas de Clientes
+
+Cuenta (cliente que contrata el sistema)
+ ├─ Empresas (razones sociales / RUC)
+ ├─ Usuarios
+ └─ Clientes, categorías, marcas, tipo de cambio
+      └─ cada empresa: productos, almacenes, cotizaciones, ventas, CRM, helpdesk
+```
+
+- **Aislamiento automático**: los modelos usan `PerteneceACuenta` / `PerteneceACuentaPorPadre`
+  (`backend/app/Models/Concerns`). Toda consulta se filtra por la cuenta del usuario autenticado,
+  que define el middleware `cuenta`. Para validar ids recibidos use `new ExisteEnCuenta(Modelo::class)`
+  en lugar de la regla `exists` (la regla nativa no aplica el filtro).
+- **Roles**: `SUPERADMIN` (dueño de la plataforma), `ADMIN` (administrador de su cuenta) y roles con
+  permisos por módulo. El SUPERADMIN solo existe en la cuenta de plataforma y solo administra cuentas:
+  los módulos del negocio le responden 403 (middleware `cuenta.cliente`). Si el dueño también usa el
+  sistema para su propio negocio, lo hace con otro usuario en una cuenta de cliente normal.
+- **Permisos**: se validan en el servidor con el middleware `permiso:{clave}` (ver `routes/api.php`).
 
 ---
 
@@ -67,9 +88,80 @@ Las credenciales provienen de la base de datos importada (`sistema_almacen 18-10
 
 ---
 
-## 🗄️ Actualizaciones de Base de Datos para Nuevos Módulos
+## 🧪 Pruebas
 
-Para habilitar los nuevos módulos en tu base de datos MySQL (local o en phpMyAdmin en Hostinger `u622044135_sis_almacen`), ejecuta los siguientes scripts SQL ubicados en la raíz del proyecto:
+Las pruebas usan MySQL/MariaDB (base `sistema_almacen_test`, se crea vacía) y corren en GitHub Actions en cada push.
+Incluyen las pruebas de aislamiento entre cuentas: **si alguna falla, hay datos expuestos entre clientes.**
+
+```bash
+cd backend
+php artisan test              # DB_PORT=3307 php artisan test para otro puerto
+```
+
+---
+
+## 🚢 Despliegue en Producción
+
+Los cambios de base de datos se hacen con **migraciones de Laravel** (`backend/database/migrations`).
+Los scripts `.sql` de la raíz quedan solo como historial: **no los ejecute más**.
+
+### Primera vez con migraciones (base de datos existente)
+
+1. **Respalde la base de datos** (exportación completa desde phpMyAdmin).
+2. Suba el código y en `backend/` ejecute:
+   ```bash
+   composer install --no-dev --optimize-autoloader
+   php artisan migrate --force
+   php artisan db:seed --force          # catálogo de módulos y permisos (no duplica)
+   php artisan config:cache && php artisan route:cache
+   ```
+   La migración `esquema_base` detecta que las tablas ya existen y no las toca; las siguientes crean
+   la tabla `cuentas` y asignan todos los datos actuales a una primera cuenta.
+
+### Instalación nueva (base de datos vacía)
+
+```bash
+php artisan migrate --seed --force
+```
+Luego cree el super administrador (crea también la cuenta de plataforma y muestra una contraseña temporal):
+```bash
+php artisan plataforma:crear-superadmin su-correo@dominio.com --nombre="Su Nombre"
+```
+Las cuentas de clientes se crean desde el panel *Plataforma*.
+
+### Actualizaciones siguientes
+
+```bash
+php artisan down
+git pull && composer install --no-dev --optimize-autoloader
+php artisan migrate --force
+php artisan config:cache && php artisan route:cache
+php artisan up
+```
+
+### Variables de entorno de producción (`backend/.env`)
+
+| Variable | Valor |
+| :--- | :--- |
+| `APP_ENV` / `APP_DEBUG` | `production` / **`false`** (con `true` los errores muestran datos internos) |
+| `FRONTEND_URL` | URL del frontend, para los enlaces de los correos |
+| `SANCTUM_EXPIRATION` | Minutos de vida de una sesión (por defecto 720 = 12 h) |
+| `MAIL_*` | SMTP o servicio de correo, necesario para recuperar contraseñas |
+| `ARCHIVOS_DISK` | `public` (por defecto) o `s3` para logos y adjuntos |
+| `CACHE_STORE` | `database` (la tabla `cache` la crea `migrate`; la usa el límite de intentos de login) |
+
+### Tareas programadas
+
+Configure el cron de Laravel (borra las sesiones vencidas):
+```
+* * * * * cd /ruta/backend && php artisan schedule:run >> /dev/null 2>&1
+```
+
+---
+
+## 🗄️ Historial: scripts SQL anteriores a las migraciones
+
+Estos scripts ya están incluidos en `backend/database/schema/esquema_base.sql`. Se conservan solo como referencia:
 
 ### 1. Documentos de Venta y Cobranzas
 📄 [actualizacion_ventas_cobranzas.sql](actualizacion_ventas_cobranzas.sql)

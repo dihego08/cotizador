@@ -50,7 +50,8 @@ return [
     |
     */
 
-    'expiration' => null,
+    // Minutos de vida de un token de sesión (12 horas por defecto)
+    'expiration' => env('SANCTUM_EXPIRATION', 720),
 
     /*
     |--------------------------------------------------------------------------

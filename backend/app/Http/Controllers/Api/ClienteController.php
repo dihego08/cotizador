@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Auditoria;
 use App\Models\Cliente;
 use App\Models\ClienteContacto;
 use Illuminate\Http\Request;
@@ -16,10 +17,10 @@ class ClienteController extends Controller
 
         $clientes = Cliente::with('contactos')
             ->when($search, function ($q) use ($search) {
-                $q->where('razon_social', 'like', "%{$search}%")
+                $q->where(fn($sub) => $sub->where('razon_social', 'like', "%{$search}%")
                     ->orWhere('num_documento', 'like', "%{$search}%")
                     ->orWhere('email', 'like', "%{$search}%")
-                    ->orWhere('atencion', 'like', "%{$search}%");
+                    ->orWhere('atencion', 'like', "%{$search}%"));
             })
             ->when($helpdeskOnly, fn($q) => $q->where('es_cliente_helpdesk', true))
             ->orderBy('razon_social')
@@ -46,7 +47,7 @@ class ClienteController extends Controller
     {
         $validated = $request->validate([
             'tipo_documento' => 'required|in:DNI,RUC,CE,PASAPORTE,OTROS',
-            'num_documento' => 'required|string|max:15|unique:clientes,num_documento',
+            'num_documento' => ['required', 'string', 'max:15', $this->unicoEnCuenta('clientes', 'num_documento')],
             'razon_social' => 'required|string|max:255',
             'direccion' => 'nullable|string|max:255',
             'departamento' => 'nullable|string|max:50',
@@ -74,7 +75,10 @@ class ClienteController extends Controller
 
         $validated = $request->validate([
             'tipo_documento' => 'sometimes|required|in:DNI,RUC,CE,PASAPORTE,OTROS',
-            'num_documento' => 'sometimes|required|string|max:15|unique:clientes,num_documento,' . $id . ',id_cliente',
+            'num_documento' => [
+                'sometimes', 'required', 'string', 'max:15',
+                $this->unicoEnCuenta('clientes', 'num_documento')->ignore($id, 'id_cliente'),
+            ],
             'razon_social' => 'sometimes|required|string|max:255',
             'direccion' => 'nullable|string|max:255',
             'departamento' => 'nullable|string|max:50',
@@ -100,6 +104,7 @@ class ClienteController extends Controller
     {
         $cliente = Cliente::findOrFail($id);
         $cliente->delete();
+        Auditoria::registrar('ELIMINAR', 'cliente', $cliente->id_cliente, "Eliminó el cliente {$cliente->razon_social} ({$cliente->num_documento})");
 
         return response()->json([
             'status' => 'success',

@@ -14,8 +14,10 @@ import {
   Trash2,
 } from 'lucide-react';
 import api from '../api/client';
+import { useCompany } from '../context/CompanyContext';
 
 export default function EmpresasPage() {
+  const { refreshEmpresas } = useCompany();
   const [empresas, setEmpresas] = useState([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
@@ -145,10 +147,22 @@ export default function EmpresasPage() {
 
       setModalOpen(false);
       fetchEmpresas();
+      refreshEmpresas();
     } catch (err) {
       setError(err.response?.data?.message || 'Error al guardar empresa.');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleDelete = async (emp) => {
+    if (!window.confirm(`¿Seguro de eliminar la empresa "${emp.razon_social}"? Esta acción no se puede deshacer.`)) return;
+    try {
+      await api.delete(`/empresas/${emp.id_empresa}`);
+      fetchEmpresas();
+      refreshEmpresas();
+    } catch (err) {
+      alert(err.response?.data?.message || 'Error al eliminar empresa.');
     }
   };
 
@@ -215,12 +229,20 @@ export default function EmpresasPage() {
                     </div>
                   </div>
 
-                  <button
-                    onClick={() => handleOpenEdit(emp)}
-                    className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-indigo-600 dark:hover:bg-slate-800"
-                  >
-                    <Edit2 className="h-4 w-4" />
-                  </button>
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => handleOpenEdit(emp)}
+                      className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-indigo-600 dark:hover:bg-slate-800"
+                    >
+                      <Edit2 className="h-4 w-4" />
+                    </button>
+                    <button
+                      onClick={() => handleDelete(emp)}
+                      className="rounded-lg p-1.5 text-slate-400 hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-950/40"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
                 </div>
 
                 <div className="mt-5 space-y-2 text-xs text-slate-600 dark:text-slate-400">
@@ -377,6 +399,20 @@ export default function EmpresasPage() {
                   value={formData.direccion}
                   onChange={(e) => setFormData({ ...formData, direccion: e.target.value })}
                   placeholder="Sor Ana de los Ángeles - Cerro Colorado - Arequipa"
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50 p-2 text-xs text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                  Correo Electrónico
+                </label>
+                <input
+                  type="email"
+                  maxLength={100}
+                  value={formData.email}
+                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  placeholder="info@empresa.com"
                   className="w-full rounded-xl border border-slate-200 bg-slate-50 p-2 text-xs text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
                 />
               </div>

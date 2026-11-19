@@ -2,15 +2,19 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\PerteneceACuentaPorPadre;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class Stock extends Model
 {
-    use HasFactory;
+    use HasFactory, PerteneceACuentaPorPadre;
 
     protected $table = 'stock';
     protected $primaryKey = 'id_stock';
+
+    // Se aísla por cuenta a través de este registro padre
+    protected string $relacionCuenta = 'producto';
     public $timestamps = false;
 
     protected $fillable = [

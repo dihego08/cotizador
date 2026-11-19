@@ -2,15 +2,19 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\PerteneceACuentaPorPadre;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class CotizacionDetalle extends Model
 {
-    use HasFactory;
+    use HasFactory, PerteneceACuentaPorPadre;
 
     protected $table = 'cotizacion_detalles';
     protected $primaryKey = 'id_detalle';
+
+    // Se aísla por cuenta a través de este registro padre
+    protected string $relacionCuenta = 'cotizacion';
     public $timestamps = false;
 
     protected $fillable = [
