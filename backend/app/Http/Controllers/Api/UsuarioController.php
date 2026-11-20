@@ -134,8 +134,9 @@ class UsuarioController extends Controller
             'nombre_usuario' => $validated['nombre_usuario'] ?? $usuario->nombre_usuario,
             'rol' => $rol,
             'email' => $validated['email'] ?? $usuario->email,
-            'cargo' => $validated['cargo'] ?? $usuario->cargo,
-            'celular' => $validated['celular'] ?? $usuario->celular,
+            // array_key_exists: si llegan vacíos se borran (con ?? se conservaría el valor anterior)
+            'cargo' => array_key_exists('cargo', $validated) ? $validated['cargo'] : $usuario->cargo,
+            'celular' => array_key_exists('celular', $validated) ? $validated['celular'] : $usuario->celular,
             'activo' => $validated['activo'] ?? $usuario->activo,
         ];
 

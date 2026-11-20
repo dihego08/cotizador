@@ -377,6 +377,36 @@ export default function UsuariosPage() {
                 </div>
               </div>
 
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    Cargo
+                  </label>
+                  <input
+                    type="text"
+                    maxLength={100}
+                    value={formData.cargo}
+                    onChange={(e) => setFormData({ ...formData, cargo: e.target.value })}
+                    placeholder="Ej. Ejecutivo de Ventas"
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50 p-2 text-xs text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    Celular
+                  </label>
+                  <input
+                    type="text"
+                    maxLength={30}
+                    value={formData.celular}
+                    onChange={(e) => setFormData({ ...formData, celular: e.target.value })}
+                    placeholder="Ej. 987654321"
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50 p-2 text-xs text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                  />
+                </div>
+              </div>
+
               {/* Modules / Permissions Matrix */}
               {!['ADMIN', 'SUPERADMIN'].includes(formData.rol) && (
                 <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
